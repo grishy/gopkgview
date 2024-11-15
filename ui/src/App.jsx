@@ -31,9 +31,9 @@ const elkOptions = {
   "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
   "elk.layered.spacing.nodeNodeBetweenLayers": 200,
   "elk.spacing.nodeNodeBetweenLayers": 100,
-  "elk.spacing.nodeNode": 70,
+  "elk.spacing.nodeNode": 30,
   "elk.spacing.edgeEdge": 20,
-  "elk.spacing.edgeNode": 35,
+  "elk.spacing.edgeNode": 50,
 };
 
 const { initialNodes, initialEdges } = await initialData();
@@ -91,10 +91,23 @@ function LayoutFlow() {
   const [displayExt, setDisplayExt] = useState(false);
   const [displayErr, setDisplayErr] = useState(false);
 
-  const onLayout = useCallback(async () => {
-    console.log(displayStd, displayLoc, displayExt, displayErr);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [hoveredNode, setHoveredNode] = useState(null);
 
-    const filteredNodes = initialNodes.filter((n) => {
+  const onLayout = useCallback(async () => {
+    let selected = initialNodes;
+    if (selectedNode) {
+      const sid = selectedNode.id;
+      selected = initialNodes.filter(
+        (n) =>
+          n.id === sid ||
+          initialEdges.find((e) => e.source === n.id && e.target === sid) ||
+          initialEdges.find((e) => e.target === n.id && e.source === sid)
+      );
+    }
+
+    const filteredNodes = selected.filter((n) => {
+      if (selectedNode && n.id === selectedNode.id) return true;
       if (n.pkgType === "std") return displayStd;
       if (n.pkgType === "loc") return displayLoc;
       if (n.pkgType === "ext") return displayExt;
@@ -109,26 +122,40 @@ function LayoutFlow() {
         filteredNodes.find((n) => n.id === e.target)
     );
 
-    console.log(filteredNodes, filteredEdges);
+    const { nodes, edges } = await getLayoutedElements(
+      filteredNodes,
+      filteredEdges
+    );
 
-    const { nodes: layoutedNodes, edges: layoutedEdges } =
-      await getLayoutedElements(filteredNodes, filteredEdges);
+    // Fit the view after the layout is done
+    setNodes(nodes);
+    setEdges(edges);
 
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
-  }, [nodes, edges, displayStd, displayLoc, displayExt, displayErr]);
+    // TODO: Hack to force the fitView to run!
+    setTimeout(() => {
+      window.requestAnimationFrame(() => fitView());
+    }, 20);
+  }, [displayStd, displayLoc, displayExt, displayErr, selectedNode]);
 
   // Calculate the initial layout on mount.
   useLayoutEffect(() => {
     onLayout();
-  }, [displayStd, displayLoc, displayExt, displayErr]);
+  }, [displayStd, displayLoc, displayExt, displayErr, selectedNode]);
 
-  // Fit the view after the layout has been calculated.
-  useLayoutEffect(() => {
-    window.requestAnimationFrame(() => fitView());
-  }, [nodes, edges]);
+  // TODO: simplify this
+  const onNodeMouseEnter = useCallback((event, node) => {
+    setHoveredNode(node);
+  }, []);
 
-  function btn(text, getter, setter) {
+  const onNodeMouseLeave = useCallback(() => {
+    setHoveredNode(null);
+  }, []);
+
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedNode(node);
+  }, []);
+
+  function ControlButton(text, getter, setter) {
     return (
       <div
         onClick={() => setter(!getter)}
@@ -145,19 +172,30 @@ function LayoutFlow() {
     <ReactFlow
       nodes={nodes}
       edges={edges}
+      onNodeClick={onNodeClick}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeMouseEnter={onNodeMouseEnter}
+      onNodeMouseLeave={onNodeMouseLeave}
       minZoom={0.2}
       maxZoom={4}
       fitView
       fitViewOptions={{ padding: 0.5 }}
     >
+      <Panel position="top-left">
+        {selectedNode && (
+          <p>
+            <button onClick={() => setSelectedNode(null)}>Close</button>
+            {selectedNode.id}
+          </p>
+        )}
+      </Panel>
       <Panel position="top-right">
         <div className="gopkgview-mode">
-          {btn("STD", displayStd, setDisplayStd)}
-          {btn("Loc", displayLoc, setDisplayLoc)}
-          {btn("External", displayExt, setDisplayExt)}
-          {btn("Error", displayErr, setDisplayErr)}
+          {ControlButton("STD", displayStd, setDisplayStd)}
+          {ControlButton("Loc", displayLoc, setDisplayLoc)}
+          {ControlButton("External", displayExt, setDisplayExt)}
+          {ControlButton("Error", displayErr, setDisplayErr)}
         </div>
       </Panel>
       <Controls />
@@ -188,12 +226,14 @@ async function initialData() {
   // type: "input"  - first node
   // type: "output" - with no children
   const initialNodes = serverNodes.map((n) => {
-    const width = Math.max(150, n.Name.length * 7);
-    const height = 50;
+    const label = n.PkgType !== "loc" ? n.ImportPath : n.Name;
+    // TODO: Hack to make the width of the node dynamic
+    const width = Math.max(100, label.length * 7);
+    const height = 40;
 
     return {
       id: n.ImportPath,
-      data: { label: n.Name },
+      data: { label },
       position: { x: 0, y: 0 },
       pkgType: n.PkgType,
       style: nodeStyle(n.PkgType),
