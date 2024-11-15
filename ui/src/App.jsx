@@ -97,13 +97,38 @@ function LayoutFlow() {
   const onLayout = useCallback(async () => {
     let selected = initialNodes;
     if (selectedNode) {
+      selected = [];
       const sid = selectedNode.id;
-      selected = initialNodes.filter(
-        (n) =>
-          n.id === sid ||
-          initialEdges.find((e) => e.source === n.id && e.target === sid) ||
-          initialEdges.find((e) => e.target === n.id && e.source === sid)
-      );
+
+      for (const n of initialNodes) {
+        if (n.id === sid) {
+          n.style = {
+            ...n.style,
+            border: "2px solid rgb(16 185 129)",
+          };
+          selected.push(n);
+          continue;
+        }
+        for (const e of initialEdges) {
+          if (e.source === n.id && e.target === sid) {
+            n.style = {
+              ...n.style,
+              border: "2px solid rgb(249 115 22)",
+            };
+            selected.push(n);
+            break;
+          }
+
+          if (e.target === n.id && e.source === sid) {
+            n.style = {
+              ...n.style,
+              border: "2px solid rgb(120 113 108)",
+            };
+            selected.push(n);
+            break;
+          }
+        }
+      }
     }
 
     const filteredNodes = selected.filter((n) => {
@@ -154,6 +179,79 @@ function LayoutFlow() {
   const onNodeClick = useCallback((event, node) => {
     setSelectedNode(node);
   }, []);
+
+  // Effect to update styles based on hovered node
+  useLayoutEffect(() => {
+    // Build a set of connected node IDs including the hovered node
+    const connectedNodeIds = new Set();
+    const hoveredNodeId = hoveredNode?.id;
+
+    if (hoveredNodeId) {
+      connectedNodeIds.add(hoveredNodeId);
+
+      edges.forEach((edge) => {
+        if (edge.source === hoveredNodeId) {
+          connectedNodeIds.add(edge.target);
+        } else if (edge.target === hoveredNodeId) {
+          connectedNodeIds.add(edge.source);
+        }
+      });
+    }
+
+    // Update node styles
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (hoveredNodeId && !connectedNodeIds.has(node.id)) {
+          node.style.opacity = 0.2;
+          return node;
+        } else {
+          node.style.opacity = 1.0;
+          return node;
+        }
+      })
+    );
+
+    // Update edge styles
+    setEdges((eds) =>
+      eds.map((edge) => {
+        if (hoveredNodeId) {
+          if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
+            return {
+              ...edge,
+              style: { stroke: "red" }, // Highlight connected edges
+              markerEnd: {
+                type: MarkerType.Arrow,
+                color: "red",
+                width: 32,
+                height: 32,
+              },
+            };
+          } else {
+            return {
+              ...edge,
+              style: { opacity: 0.1 }, // Make edge pale
+              markerEnd: {
+                type: MarkerType.Arrow,
+                color: null,
+                width: 24,
+                height: 24,
+              },
+            };
+          }
+        } else {
+          return {
+            ...edge,
+            style: {}, // Reset to default style
+            markerEnd: {
+              type: MarkerType.Arrow,
+              width: 24,
+              height: 24,
+            },
+          };
+        }
+      })
+    );
+  }, [hoveredNode]);
 
   function ControlButton(text, getter, setter) {
     return (
