@@ -39,10 +39,9 @@ func ServeCmd(ctx context.Context) *cli.Command {
 				Label string `json:"label"`
 			}
 			type node struct {
-				ID       string   `json:"id"`
-				Position position `json:"position"`
-				Data     nodeData `json:"data"`
-				PkgType  string   `json:"pkgType"`
+				ID      string   `json:"id"`
+				Data    nodeData `json:"data"`
+				PkgType string   `json:"pkgType"`
 			}
 
 			nodeList := make([]node, 0)
@@ -60,10 +59,6 @@ func ServeCmd(ctx context.Context) *cli.Command {
 								panic(fmt.Sprintf("unknown package type: %s", val.PkgType))
 							}
 						}(),
-					},
-					Position: position{
-						X: 0,
-						Y: 0,
 					},
 					PkgType: string(val.PkgType),
 				})

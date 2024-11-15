@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import {
   Background,
+  MiniMap,
+  Controls,
   ReactFlow,
   ReactFlowProvider,
   addEdge,
@@ -57,7 +59,6 @@ function nodeStyle(node) {
 }
 
 const getLayoutedElements = (nodes, edges, options = {}) => {
-  const isHorizontal = options?.["elk.direction"] === "RIGHT";
   const graph = {
     id: "root",
     layoutOptions: options,
@@ -65,8 +66,8 @@ const getLayoutedElements = (nodes, edges, options = {}) => {
       ...node,
       // Adjust the target and source handle positions based on the layout
       // direction.
-      targetPosition: isHorizontal ? "left" : "top",
-      sourcePosition: isHorizontal ? "right" : "bottom",
+      targetPosition: "left",
+      sourcePosition: "right",
 
       // Hardcode a width and height for elk to use when layouting.
       width: (function () {
@@ -108,8 +109,26 @@ const getLayoutedElements = (nodes, edges, options = {}) => {
     .catch(console.error);
 };
 
-function filterGraph(nodes, edges, mode) {
-  console.log("mode", mode);
+function filterGraph(nodes, edges, mode, selectedNodeId = null) {
+  if (!!selectedNodeId) {
+    const ns = nodes.filter((n) => {
+      return (
+        n.id === selectedNodeId ||
+        edges.some((e) => e.source === n.id && e.target === selectedNodeId) ||
+        edges.some((e) => e.target === n.id && e.source === selectedNodeId)
+      );
+    });
+    const es = edges.filter(
+      (e) =>
+        ns.some((n) => selectedNodeId === e.source) ||
+        ns.some((n) => selectedNodeId === e.target)
+    );
+
+    return {
+      ns,
+      es,
+    };
+  }
 
   switch (mode) {
     case "all":
@@ -129,7 +148,8 @@ function filterGraph(nodes, edges, mode) {
       const nsnotStd = nodes.filter((n) => n.pkgType !== "std");
       const esnotStd = edges.filter(
         (e) =>
-          nsnotStd.some((n) => n.id === e.source) && nsnotStd.some((n) => n.id === e.target)
+          nsnotStd.some((n) => n.id === e.source) &&
+          nsnotStd.some((n) => n.id === e.target)
       );
 
       return {
@@ -147,9 +167,15 @@ function LayoutFlow() {
   const { fitView } = useReactFlow();
 
   const onLayout = useCallback(
-    ({ mode = "local" }) => {
+    ({ mode = "local", selectedNodeId = null }) => {
       const opts = elkOptions;
-      const { ns, es } = filterGraph(initialNodes, initialEdges, mode);
+      let { ns, es } = filterGraph(
+        initialNodes,
+        initialEdges,
+        mode,
+        selectedNodeId
+      );
+      ns = ns.map((n) => ({ ...n, position: { x: 0, y: 0 } }));
 
       getLayoutedElements(ns, es, opts).then(
         ({ nodes: layoutedNodes, edges: layoutedEdges }) => {
@@ -165,7 +191,7 @@ function LayoutFlow() {
 
   // Calculate the initial layout on mount.
   useLayoutEffect(() => {
-    onLayout({ direction: "DOWN", useInitialNodes: true });
+    onLayout({ mode: "local" });
   }, []);
 
   // State to track the currently hovered node
@@ -256,15 +282,27 @@ function LayoutFlow() {
     );
   }, [hoveredNodeId, setNodes, setEdges, edges]);
 
+  // Event handlers to manage hover state
+  const onNodeClick = useCallback((event, node) => {
+    console.log("node clicked", node);
+    onLayout({ mode: "local", selectedNodeId: node.id });
+  }, []);
+
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onNodeClick={onNodeClick}
       onNodeMouseEnter={onNodeMouseEnter}
       onNodeMouseLeave={onNodeMouseLeave}
+      minZoom={0.2}
+      style={{ background: "#F7F9FB" }}
+      maxZoom={4}
+      attributionPosition="bottom-left"
       fitView
-      style={{ backgroundColor: "#F7F9FB" }}
+      fitViewOptions={{ padding: 0.5 }}
     >
       <Panel position="top-right">
         <button onClick={() => onLayout({ mode: "all" })}>all</button>
@@ -272,6 +310,8 @@ function LayoutFlow() {
         <button onClick={() => onLayout({ mode: "notStd" })}>not std</button>
       </Panel>
       <Background />
+      <MiniMap />
+      <Controls />
     </ReactFlow>
   );
 }
