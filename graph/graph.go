@@ -36,7 +36,9 @@ type Graph struct {
 	absRoot  string
 	gomodIdx *trie.PathTrie
 
-	parseMx    sync.Mutex          // TODO: Use later for concurrency
+	parseMx    sync.Mutex
+	parseWg    sync.WaitGroup
+	parseSem   chan struct{}
 	parseCache map[string]struct{} // Visited packages
 
 	nodes []Node
@@ -44,6 +46,8 @@ type Graph struct {
 }
 
 func New(root string) (*Graph, error) {
+	const maxGoroutines = 20 // TODO: make it configurable
+
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
@@ -55,15 +59,24 @@ func New(root string) (*Graph, error) {
 	}
 
 	graph := &Graph{
-		buildCtx:   &build.Default,
+		buildCtx: &build.Default,
+		absRoot:  absRoot,
+		gomodIdx: gomodIdx,
+
+		parseMx:    sync.Mutex{},
+		parseWg:    sync.WaitGroup{},
+		parseSem:   make(chan struct{}, maxGoroutines),
 		parseCache: make(map[string]struct{}),
-		absRoot:    absRoot,
-		gomodIdx:   gomodIdx,
+
+		nodes: []Node{},
+		edges: []Edge{},
 	}
 
 	graph.buildCtx.CgoEnabled = false // TODO: Check if this is needed
 
-	graph.recurseImport(".", absRoot)
+	graph.parseWg.Add(1)
+	go graph.recurseImport(".", absRoot)
+	graph.parseWg.Wait()
 
 	return graph, nil
 }
@@ -78,11 +91,20 @@ func (g *Graph) Edges() []Edge {
 
 // TODO: Implement cuncurrency with max limit of goroutines
 func (g *Graph) recurseImport(path, srcDir string) {
+	defer g.parseWg.Done()
+
+	// Limit the number of goroutines in flight
+	g.parseSem <- struct{}{}
+	defer func() { <-g.parseSem }()
+
 	// Avoid parsing the same package multiple times
+	g.parseMx.Lock()
 	if _, ok := g.parseCache[path]; ok {
+		g.parseMx.Unlock()
 		return
 	}
 	g.parseCache[path] = struct{}{}
+	g.parseMx.Unlock()
 
 	pkg, err := g.buildCtx.Import(path, srcDir, 0)
 	if err != nil {
@@ -98,22 +120,29 @@ func (g *Graph) recurseImport(path, srcDir string) {
 		pkgType = PkgTypeExtLib
 	}
 
+	g.parseMx.Lock()
 	g.nodes = append(g.nodes, Node{
 		ImportPath: pkg.ImportPath,
 		Name:       pkg.Name,
 		PkgType:    pkgType,
 	})
+	g.parseMx.Unlock()
 
-	// We don't want to recurse into std lib or external packages
 	for _, imp := range pkg.Imports {
-		if pkgType == PkgTypeLocal {
-			g.edges = append(g.edges, Edge{
-				From: pkg.ImportPath,
-				To:   imp,
-			})
-
-			g.recurseImport(imp, pkg.Dir)
+		// We don't want to recurse into std lib or external packages
+		if pkgType != PkgTypeLocal {
+			continue
 		}
+
+		g.parseMx.Lock()
+		g.edges = append(g.edges, Edge{
+			From: pkg.ImportPath,
+			To:   imp,
+		})
+		g.parseMx.Unlock()
+
+		g.parseWg.Add(1)
+		go g.recurseImport(imp, pkg.Dir)
 	}
 }
 
