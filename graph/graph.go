@@ -86,7 +86,9 @@ func (g *Graph) recurseImport(path, srcDir string) {
 
 	pkg, err := g.buildCtx.Import(path, srcDir, 0)
 	if err != nil {
-		log.Panicf("failed to import %s: %v", path, err)
+		// TODO: mark package as errored to change view in UI
+		log.Printf("failed to import %s: %v", path, err)
+		return
 	}
 
 	pkgType := PkgTypeLocal

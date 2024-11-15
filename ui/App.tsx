@@ -108,20 +108,48 @@ const getLayoutedElements = (nodes, edges, options = {}) => {
     .catch(console.error);
 };
 
+function filterGraph(nodes, edges, mode) {
+  console.log("mode", mode);
+
+  switch (mode) {
+    case "all":
+      return { ns: nodes, es: edges };
+    case "local":
+      const ns = nodes.filter((n) => n.pkgType === "local");
+      const es = edges.filter(
+        (e) =>
+          ns.some((n) => n.id === e.source) && ns.some((n) => n.id === e.target)
+      );
+
+      return {
+        ns,
+        es,
+      };
+    case "notStd":
+      const nsnotStd = nodes.filter((n) => n.pkgType !== "std");
+      const esnotStd = edges.filter(
+        (e) =>
+          nsnotStd.some((n) => n.id === e.source) && nsnotStd.some((n) => n.id === e.target)
+      );
+
+      return {
+        ns: nsnotStd,
+        es: esnotStd,
+      };
+  }
+
+  return { ns: nodes, es: edges };
+}
+
 function LayoutFlow() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { fitView } = useReactFlow();
 
-  // const onConnect = useCallback(
-  //   (params) => setEdges((eds) => addEdge(params, eds)),
-  //   []
-  // );
   const onLayout = useCallback(
-    ({ direction, useInitialNodes = false }) => {
-      const opts = { "elk.direction": direction, ...elkOptions };
-      const ns = useInitialNodes ? initialNodes : nodes;
-      const es = useInitialNodes ? initialEdges : edges;
+    ({ mode = "local" }) => {
+      const opts = elkOptions;
+      const { ns, es } = filterGraph(initialNodes, initialEdges, mode);
 
       getLayoutedElements(ns, es, opts).then(
         ({ nodes: layoutedNodes, edges: layoutedEdges }) => {
@@ -232,22 +260,16 @@ function LayoutFlow() {
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      // onConnect={onConnect}
       onNodesChange={onNodesChange}
       onNodeMouseEnter={onNodeMouseEnter}
       onNodeMouseLeave={onNodeMouseLeave}
-      // onEdgesChange={onEdgesChange}
       fitView
       style={{ backgroundColor: "#F7F9FB" }}
     >
       <Panel position="top-right">
-        <button onClick={() => onLayout({ direction: "DOWN" })}>
-          vertical layout
-        </button>
-
-        <button onClick={() => onLayout({ direction: "RIGHT" })}>
-          horizontal layout
-        </button>
+        <button onClick={() => onLayout({ mode: "all" })}>all</button>
+        <button onClick={() => onLayout({ mode: "local" })}>local</button>
+        <button onClick={() => onLayout({ mode: "notStd" })}>not std</button>
       </Panel>
       <Background />
     </ReactFlow>
