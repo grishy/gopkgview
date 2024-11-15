@@ -11,3 +11,40 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+.gopkgview-mode {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  background-color: rgb(255, 255, 255);
+  padding: 0.25rem;
+}
+
+.gopkgview-mode-btn {
+  color: rgb(0, 0, 0);
+  border-radius: 0.5rem;
+  background-color: rgb(238, 238, 238);
+
+  padding: 0.5rem;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+
+  transition: background-color 0.2s;
+}
+
+.gopkgview-mode-btn:hover {
+  background-color: rgb(203, 203, 203);
+}
+
+.gopkgview-mode-btn-active {
+  background-color: rgb(22, 163, 74);
+  color: rgb(255, 255, 255);
+}
+
+.gopkgview-mode-btn-active:hover {
+  background-color: rgb(20, 136, 62);
+}

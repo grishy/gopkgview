@@ -17,7 +17,8 @@ type PkgTypeEnum string
 const (
 	PkgTypeStdLib PkgTypeEnum = "std"
 	PkgTypeExtLib PkgTypeEnum = "ext"
-	PkgTypeLocal  PkgTypeEnum = "local"
+	PkgTypeLocal  PkgTypeEnum = "loc"
+	PkgTypeErr    PkgTypeEnum = "err"
 )
 
 type Node struct {
@@ -89,7 +90,6 @@ func (g *Graph) Edges() []Edge {
 	return g.edges
 }
 
-// TODO: Implement cuncurrency with max limit of goroutines
 func (g *Graph) recurseImport(path, srcDir string) {
 	defer g.parseWg.Done()
 
@@ -108,8 +108,9 @@ func (g *Graph) recurseImport(path, srcDir string) {
 
 	pkg, err := g.buildCtx.Import(path, srcDir, 0)
 	if err != nil {
-		// TODO: mark package as errored to change view in UI
 		log.Printf("failed to import %s: %v", path, err)
+
+		g.addNode(path, "[err] "+path, PkgTypeErr)
 		return
 	}
 
@@ -120,30 +121,37 @@ func (g *Graph) recurseImport(path, srcDir string) {
 		pkgType = PkgTypeExtLib
 	}
 
-	g.parseMx.Lock()
-	g.nodes = append(g.nodes, Node{
-		ImportPath: pkg.ImportPath,
-		Name:       pkg.Name,
-		PkgType:    pkgType,
-	})
-	g.parseMx.Unlock()
-
+	g.addNode(pkg.ImportPath, pkg.Name, pkgType)
 	for _, imp := range pkg.Imports {
 		// We don't want to recurse into std lib or external packages
 		if pkgType != PkgTypeLocal {
 			continue
 		}
 
-		g.parseMx.Lock()
-		g.edges = append(g.edges, Edge{
-			From: pkg.ImportPath,
-			To:   imp,
-		})
-		g.parseMx.Unlock()
+		g.addEdge(pkg.ImportPath, imp)
 
 		g.parseWg.Add(1)
 		go g.recurseImport(imp, pkg.Dir)
 	}
+}
+
+func (g *Graph) addNode(path, name string, pkgType PkgTypeEnum) {
+	g.parseMx.Lock()
+	defer g.parseMx.Unlock()
+	g.nodes = append(g.nodes, Node{
+		ImportPath: path,
+		Name:       name,
+		PkgType:    pkgType,
+	})
+}
+
+func (g *Graph) addEdge(from, to string) {
+	g.parseMx.Lock()
+	defer g.parseMx.Unlock()
+	g.edges = append(g.edges, Edge{
+		From: from,
+		To:   to,
+	})
 }
 
 func parseGoMod(root string) (*trie.PathTrie, error) {

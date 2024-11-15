@@ -1,16 +1,16 @@
-import React, { useLayoutEffect, useCallback } from "react";
+import React, { useLayoutEffect, useCallback, useState } from "react";
 import ELK from "elkjs/lib/elk.bundled.js";
 import {
   ReactFlow,
   MiniMap,
   Controls,
   Background,
+  Panel,
   ReactFlowProvider,
   MarkerType,
   useNodesState,
   useEdgesState,
   useReactFlow,
-  addEdge,
 } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
@@ -36,47 +36,37 @@ const elkOptions = {
   "elk.spacing.edgeNode": 35,
 };
 
-const initialNodes = [
-  { id: "1", position: { x: 0, y: 0 }, data: { label: "1" } },
-  { id: "2", position: { x: 0, y: 0 }, data: { label: "2" } },
-];
-const initialEdges = [{ id: "e1-2", source: "1", target: "2" }];
+const { initialNodes, initialEdges } = await initialData();
 
-const getLayoutedElements = (nodes, edges) => {
+const getLayoutedElements = async (nodes, edges) => {
+  // Convert for ELK
+  // All fields will be passed to ELK and saved in the resulting node
   const graph = {
     id: "root",
     layoutOptions: elkOptions,
-    children: nodes.map((node) => {
-      const width = Math.max(150, node.data.label.length * 7);
-      const height = 50;
-      return {
-        id: node.id,
-        data: {
-          label: node.data.label,
-        },
-        targetPosition: "left",
-        sourcePosition: "right",
-        width,
-        height,
-      };
-    }),
-    edges: edges,
+    edges,
+    children: nodes,
   };
 
-  return elk
-    .layout(graph)
-    .then((layoutedGraph) => ({
-      nodes: layoutedGraph.children.map((node) => ({
-        ...node,
-        // React Flow expects a position property on the node instead of `x`
-        // and `y` fields.
-        position: { x: node.x, y: node.y },
+  // Run ELK and convert to React Flow format
+  try {
+    const layoutedGraph = await elk.layout(graph);
+
+    return {
+      nodes: layoutedGraph.children.map((n) => ({
+        ...n,
+        position: { x: n.x, y: n.y },
+
+        targetPosition: "left",
+        sourcePosition: "right",
+
         connectable: false,
         deletable: false,
       })),
 
-      edges: layoutedGraph.edges?.map((edge) => ({
-        ...edge,
+      edges: layoutedGraph.edges.map((e) => ({
+        ...e,
+
         deletable: false,
         reconnectable: false,
         markerEnd: {
@@ -85,8 +75,10 @@ const getLayoutedElements = (nodes, edges) => {
           height: 24,
         },
       })),
-    }))
-    .catch(console.error);
+    };
+  } catch (data) {
+    return console.error(data);
+  }
 };
 
 function LayoutFlow() {
@@ -94,32 +86,60 @@ function LayoutFlow() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { fitView } = useReactFlow();
 
-  const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
+  const [displayStd, setDisplayStd] = useState(false);
+  const [displayLoc, setDisplayLoc] = useState(true);
+  const [displayExt, setDisplayExt] = useState(false);
+  const [displayErr, setDisplayErr] = useState(false);
 
-  const onLayout = useCallback(
-    ({ mode = "local", selectedNodeId = null }) => {
-      const ns = nodes;
-      const es = edges;
+  const onLayout = useCallback(async () => {
+    console.log(displayStd, displayLoc, displayExt, displayErr);
 
-      getLayoutedElements(ns, es).then(
-        ({ nodes: layoutedNodes, edges: layoutedEdges }) => {
-          setNodes(layoutedNodes);
-          setEdges(layoutedEdges);
+    const filteredNodes = initialNodes.filter((n) => {
+      if (n.pkgType === "std") return displayStd;
+      if (n.pkgType === "loc") return displayLoc;
+      if (n.pkgType === "ext") return displayExt;
+      if (n.pkgType === "err") return displayErr;
 
-          window.requestAnimationFrame(() => fitView());
-        }
-      );
-    },
-    [nodes, edges]
-  );
+      throw new Error("Unknown node type " + n.pkgType);
+    });
+
+    const filteredEdges = initialEdges.filter(
+      (e) =>
+        filteredNodes.find((n) => n.id === e.source) &&
+        filteredNodes.find((n) => n.id === e.target)
+    );
+
+    console.log(filteredNodes, filteredEdges);
+
+    const { nodes: layoutedNodes, edges: layoutedEdges } =
+      await getLayoutedElements(filteredNodes, filteredEdges);
+
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [nodes, edges, displayStd, displayLoc, displayExt, displayErr]);
 
   // Calculate the initial layout on mount.
   useLayoutEffect(() => {
-    onLayout({ mode: "local" });
-  }, []);
+    onLayout();
+  }, [displayStd, displayLoc, displayExt, displayErr]);
+
+  // Fit the view after the layout has been calculated.
+  useLayoutEffect(() => {
+    window.requestAnimationFrame(() => fitView());
+  }, [nodes, edges]);
+
+  function btn(text, getter, setter) {
+    return (
+      <div
+        onClick={() => setter(!getter)}
+        className={`gopkgview-mode-btn ${
+          getter ? "gopkgview-mode-btn-active" : ""
+        }`}
+      >
+        {text}
+      </div>
+    );
+  }
 
   return (
     <ReactFlow
@@ -127,14 +147,26 @@ function LayoutFlow() {
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
+      minZoom={0.2}
+      maxZoom={4}
+      fitView
+      fitViewOptions={{ padding: 0.5 }}
     >
+      <Panel position="top-right">
+        <div className="gopkgview-mode">
+          {btn("STD", displayStd, setDisplayStd)}
+          {btn("Loc", displayLoc, setDisplayLoc)}
+          {btn("External", displayExt, setDisplayExt)}
+          {btn("Error", displayErr, setDisplayErr)}
+        </div>
+      </Panel>
       <Controls />
       <MiniMap />
       <Background variant="dots" gap={12} size={1} />
     </ReactFlow>
   );
 }
+
 export default function App() {
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
@@ -143,4 +175,58 @@ export default function App() {
       </ReactFlowProvider>
     </div>
   );
+}
+
+// Get and convert the initial data
+async function initialData() {
+  const [serverNodes, serverEdges] = await Promise.all([
+    fetch("http://localhost:3000/nodes").then((res) => res.json()),
+    fetch("http://localhost:3000/edges").then((res) => res.json()),
+  ]);
+
+  // TODO: Add type here
+  // type: "input"  - first node
+  // type: "output" - with no children
+  const initialNodes = serverNodes.map((n) => {
+    const width = Math.max(150, n.Name.length * 7);
+    const height = 50;
+
+    return {
+      id: n.ImportPath,
+      data: { label: n.Name },
+      position: { x: 0, y: 0 },
+      pkgType: n.PkgType,
+      style: nodeStyle(n.PkgType),
+      width,
+      height,
+    };
+  });
+
+  const initialEdges = serverEdges.map((e) => ({
+    id: `${e.From}-${e.To}`,
+    source: e.From,
+    target: e.To,
+  }));
+
+  return { initialNodes, initialEdges };
+}
+
+function nodeStyle(nodeType) {
+  switch (nodeType) {
+    case "std":
+      return {
+        backgroundColor: "#ecfccb",
+      };
+    case "ext":
+      return {
+        backgroundColor: "#eff6ff",
+      };
+    // TODO: Debug this case
+    case "err":
+      return {
+        backgroundColor: "#ffefef",
+      };
+    default:
+      return {};
+  }
 }
