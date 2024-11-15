@@ -13,7 +13,7 @@ import (
 func ServeCmd(ctx context.Context) *cli.Command {
 	return &cli.Command{
 		Name:  "serve",
-		Usage: "Announce CNAME records for host via avahi-daemon",
+		Usage: "Serve the web UI",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "root",
@@ -30,6 +30,7 @@ func ServeCmd(ctx context.Context) *cli.Command {
 				return fmt.Errorf("failed to build graph: %w", err)
 			}
 
+			// Generate files for the UI
 			type position struct {
 				X int `json:"x"`
 				Y int `json:"y"`
@@ -41,6 +42,7 @@ func ServeCmd(ctx context.Context) *cli.Command {
 				ID       string   `json:"id"`
 				Position position `json:"position"`
 				Data     nodeData `json:"data"`
+				PkgType  string   `json:"pkgType"`
 			}
 
 			nodeList := make([]node, 0)
@@ -48,12 +50,22 @@ func ServeCmd(ctx context.Context) *cli.Command {
 				nodeList = append(nodeList, node{
 					ID: val.ImportPath,
 					Data: nodeData{
-						Label: val.Name,
+						Label: func() string {
+							switch val.PkgType {
+							case graph.PkgTypeStdLib, graph.PkgTypeExtLib:
+								return val.ImportPath
+							case graph.PkgTypeLocal:
+								return val.Name
+							default:
+								panic(fmt.Sprintf("unknown package type: %s", val.PkgType))
+							}
+						}(),
 					},
 					Position: position{
 						X: 0,
 						Y: 0,
 					},
+					PkgType: string(val.PkgType),
 				})
 			}
 
@@ -79,7 +91,7 @@ func ServeCmd(ctx context.Context) *cli.Command {
 					ID:     fmt.Sprintf("%s-%s", val.From, val.To),
 					Source: val.From,
 					Target: val.To,
-					Type:   "bezier",
+					Type:   "default",
 				})
 			}
 
