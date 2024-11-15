@@ -184,10 +184,15 @@ function LayoutFlow() {
     >
       <Panel position="top-left">
         {selectedNode && (
-          <p>
-            <button onClick={() => setSelectedNode(null)}>Close</button>
-            {selectedNode.id}
-          </p>
+          <div className="gopkgview-ctrl">
+            <div
+              onClick={() => setSelectedNode(null)}
+              className="gopkgview-ctrl-close"
+            >
+              Close
+            </div>
+            <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
+          </div>
         )}
       </Panel>
       <Panel position="top-right">

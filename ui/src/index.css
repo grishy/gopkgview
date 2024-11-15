@@ -12,10 +12,13 @@ body {
   height: 100vh;
 }
 
+/* Mode controls */
 .gopkgview-mode {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(238, 238, 238);
   background-color: rgb(255, 255, 255);
   padding: 0.25rem;
 }
@@ -47,4 +50,39 @@ body {
 
 .gopkgview-mode-btn-active:hover {
   background-color: rgb(20, 136, 62);
+}
+
+/* Selection controls */
+.gopkgview-ctrl {
+  display: flex;
+  background-color: rgb(255, 255, 255);
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(238, 238, 238);
+}
+
+.gopkgview-ctrl-title {
+  font-family: monospace;
+  margin-left: 0.5rem;
+  margin-right: 0.25rem;
+}
+
+.gopkgview-ctrl-close {
+  color: rgb(255, 255, 255);
+  background-color: rgb(185 28 28);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  transition: background-color 0.2s;
+}
+
+.gopkgview-ctrl-close:hover {
+  background-color: rgb(153 27 27);
 }
