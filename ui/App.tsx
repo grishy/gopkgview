@@ -27,10 +27,9 @@ const elkOptions = {
   'elk.direction': 'RIGHT',
   'elk.edgeRouting': 'SPLINES',
   'elk.layered.layering.strategy': 'NETWORK_SIMPLEX',
-  'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
-  'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
-  'elk.spacing.nodeNodeBetweenLayers': 50,
-  'elk.spacing.nodeNode': 30,
+  'elk.layered.spacing.nodeNodeBetweenLayers': 200,
+  'elk.spacing.nodeNodeBetweenLayers': 100,
+  'elk.spacing.nodeNode': 70,
   'elk.spacing.edgeEdge': 20,
   'elk.spacing.edgeNode': 35,
 };

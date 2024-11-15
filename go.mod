@@ -5,6 +5,7 @@ go 1.23.3
 require (
 	github.com/carlmjohnson/versioninfo v0.22.5
 	github.com/davecgh/go-spew v1.1.1
+	github.com/dghubble/trie v0.1.0
 	github.com/urfave/cli/v2 v2.27.5
 	golang.org/x/mod v0.22.0
 )
