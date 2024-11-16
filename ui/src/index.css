@@ -55,6 +55,7 @@ body {
 /* Selection controls */
 .gopkgview-ctrl {
   display: flex;
+  flex-direction: column;
   background-color: rgb(255, 255, 255);
   align-items: center;
   padding: 0.5rem;
@@ -62,10 +63,17 @@ body {
   border: 1px solid rgb(238, 238, 238);
 }
 
+.gopkgview-ctrl-top {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .gopkgview-ctrl-title {
   font-family: monospace;
   margin-left: 0.5rem;
   margin-right: 0.25rem;
+  
 }
 
 .gopkgview-ctrl-close {
@@ -85,4 +93,24 @@ body {
 
 .gopkgview-ctrl-close:hover {
   background-color: rgb(153 27 27);
+}
+
+.gopkgview-ctrl-only {
+  margin-top: 0.5rem;
+  color: rgb(255, 255, 255);
+  background-color: rgb(28, 41, 185);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  transition: background-color 0.2s;
+}
+
+.gopkgview-ctrl-only:hover {
+  background-color: rgb(24, 36, 158);
 }

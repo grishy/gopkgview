@@ -92,6 +92,7 @@ function LayoutFlow() {
   const [displayErr, setDisplayErr] = useState(false);
 
   const [selectedNode, setSelectedNode] = useState(null);
+  const [onlySelectedEdges, setOnlySelectedEdges] = useState(false);
   const [hoveredNode, setHoveredNode] = useState(null);
 
   const onLayout = useCallback(async () => {
@@ -141,11 +142,18 @@ function LayoutFlow() {
       throw new Error("Unknown node type " + n.pkgType);
     });
 
-    const filteredEdges = initialEdges.filter(
+    let filteredEdges = initialEdges.filter(
       (e) =>
         filteredNodes.find((n) => n.id === e.source) &&
         filteredNodes.find((n) => n.id === e.target)
     );
+
+    if (onlySelectedEdges) {
+      console.log("onlySelectedEdges");
+      filteredEdges = filteredEdges.filter(
+        (e) => selectedNode.id === e.source || selectedNode.id === e.target
+      );
+    }
 
     const { nodes, edges } = await getLayoutedElements(
       filteredNodes,
@@ -155,17 +163,32 @@ function LayoutFlow() {
     // Fit the view after the layout is done
     setNodes(nodes);
     setEdges(edges);
+    setHoveredNode(null);
 
     // TODO: Hack to force the fitView to run!
     setTimeout(() => {
       window.requestAnimationFrame(() => fitView());
     }, 20);
-  }, [displayStd, displayLoc, displayExt, displayErr, selectedNode]);
+  }, [
+    displayStd,
+    displayLoc,
+    displayExt,
+    displayErr,
+    selectedNode,
+    onlySelectedEdges,
+  ]);
 
   // Calculate the initial layout on mount.
   useLayoutEffect(() => {
     onLayout();
-  }, [displayStd, displayLoc, displayExt, displayErr, selectedNode]);
+  }, [
+    displayStd,
+    displayLoc,
+    displayExt,
+    displayErr,
+    selectedNode,
+    onlySelectedEdges,
+  ]);
 
   // TODO: simplify this
   const onNodeMouseEnter = useCallback((event, node) => {
@@ -202,11 +225,21 @@ function LayoutFlow() {
     setNodes((nds) =>
       nds.map((node) => {
         if (hoveredNodeId && !connectedNodeIds.has(node.id)) {
-          node.style.opacity = 0.2;
-          return node;
+          return {
+            ...node,
+            style: {
+              ...node.style,
+              opacity: 0.2,
+            },
+          };
         } else {
-          node.style.opacity = 1.0;
-          return node;
+          return {
+            ...node,
+            style: {
+              ...node.style,
+              opacity: 1.0,
+            },
+          };
         }
       })
     );
@@ -283,13 +316,25 @@ function LayoutFlow() {
       <Panel position="top-left">
         {selectedNode && (
           <div className="gopkgview-ctrl">
-            <div
-              onClick={() => setSelectedNode(null)}
-              className="gopkgview-ctrl-close"
-            >
-              Close
+            <div className="gopkgview-ctrl-top">
+              <div
+                onClick={() => {
+                  setOnlySelectedEdges(false);
+                  setHoveredNode(null);
+                  setSelectedNode(null);
+                }}
+                className="gopkgview-ctrl-close"
+              >
+                Close
+              </div>
+              <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
             </div>
-            <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
+            <div
+              onClick={() => setOnlySelectedEdges(!onlySelectedEdges)}
+              className="gopkgview-ctrl-only"
+            >
+              Only direct edges {onlySelectedEdges ? "ON" : "OFF"}
+            </div>
           </div>
         )}
       </Panel>
