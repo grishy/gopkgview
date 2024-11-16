@@ -2,18 +2,27 @@ package main
 
 import (
 	"context"
+	"embed"
+	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"time"
 
 	"github.com/carlmjohnson/versioninfo"
 	"github.com/grishy/gopkgview/graph"
 	"github.com/urfave/cli/v2"
 )
+
+//go:embed frontend/dist/*
+var frontend embed.FS
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
@@ -74,16 +83,33 @@ func main() {
 				}
 			}
 
+			fsys, err := fs.Sub(frontend, "frontend/dist")
+			if err != nil {
+				return fmt.Errorf("failed to get frontend subdirectory: %w", err)
+			}
+
 			mux := http.NewServeMux()
 			mux.Handle("/nodes", handler(nodesJSON))
 			mux.Handle("/edges", handler(edgesJSON))
-			// TODO: Add a handler for the UI
+			mux.Handle("/", http.FileServer(http.FS(fsys)))
 
-			server := &http.Server{Addr: ":3000", Handler: mux}
+			// Start on any available port
+			listener, err := net.Listen("tcp", ":0")
+			if err != nil {
+				return fmt.Errorf("failed to listen: %w", err)
+			}
+
+			defer listener.Close()
+
+			server := &http.Server{Addr: ":0", Handler: mux}
 			go func() {
-				log.Print("Listening...")
-				if err := server.ListenAndServe(); err != http.ErrServerClosed {
-					log.Fatalf("ListenAndServe(): %v", err)
+				log.Print("Starting server on ", listener.Addr())
+				if err := openbrowser("http://" + listener.Addr().String()); err != nil {
+					log.Printf("Failed to open browser: %v", err)
+				}
+
+				if err := server.Serve(listener); err != http.ErrServerClosed {
+					log.Fatalf("Serve(): %v", err)
 				}
 			}()
 
@@ -97,4 +123,18 @@ func main() {
 		fmt.Println("Error:")
 		fmt.Printf(" > %+v\n", err)
 	}
+}
+
+func openbrowser(url string) (err error) {
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	return
 }

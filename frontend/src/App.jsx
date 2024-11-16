@@ -366,8 +366,8 @@ export default function App() {
 // Get and convert the initial data
 async function initialData() {
   const [serverNodes, serverEdges] = await Promise.all([
-    fetch("http://localhost:3000/nodes").then((res) => res.json()),
-    fetch("http://localhost:3000/edges").then((res) => res.json()),
+    fetch("/nodes").then((res) => res.json()),
+    fetch("/edges").then((res) => res.json()),
   ]);
 
   // TODO: Add type here
