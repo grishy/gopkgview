@@ -42,6 +42,7 @@ type Graph struct {
 	parseSem   chan struct{}
 	parseCache map[string]struct{} // Visited packages
 
+	// We build graph during graph creation, so we don't need to lock these later.
 	nodes []Node
 	edges []Edge
 }
@@ -73,7 +74,6 @@ func New(root string, maxGoroutines uint) (*Graph, error) {
 		edges: []Edge{},
 	}
 
-	// graph.buildCtx.GOPATH = absRoot
 	graph.buildCtx.Dir = absRoot
 
 	graph.parseWg.Add(1)

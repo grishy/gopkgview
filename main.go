@@ -44,20 +44,32 @@ func main() {
 		Usage:   "Show dependencies of a Go package",
 		Version: versioninfo.Short(),
 		Flags: []cli.Flag{
-			// TODO: add a flag to specify the port
-			// TODO: number of goroutines
 			&cli.StringFlag{
 				Name:        "root",
 				EnvVars:     []string{"GO_PKGVIEW_ROOT"},
 				Usage:       "From which directory find go.mod",
 				DefaultText: "./",
 			},
+			&cli.StringFlag{
+				Name:        "addr",
+				EnvVars:     []string{"GO_PKGVIEW_ADDR"},
+				Usage:       "Address to listen on",
+				DefaultText: ":0",
+			},
+			&cli.UintFlag{
+				Name:    "max-goroutines",
+				EnvVars: []string{"GO_PKGVIEW_MAX_GOROUTINES"},
+				Usage:   "Maximum number of goroutines to use for parsing in parallel",
+				Value:   20,
+			},
 		},
 		Action: func(cCtx *cli.Context) error {
+			addr := cCtx.String("addr")
 			root := cCtx.String("root")
+			maxGoroutines := cCtx.Uint("max-goroutines")
 
 			log.Println("Creating graph...")
-			packageGraph, err := graph.New(root, 20)
+			packageGraph, err := graph.New(root, maxGoroutines)
 			if err != nil {
 				return fmt.Errorf("failed to build graph: %w", err)
 			}
@@ -94,14 +106,14 @@ func main() {
 			mux.Handle("/", http.FileServer(http.FS(fsys)))
 
 			// Start on any available port
-			listener, err := net.Listen("tcp", ":0")
+			listener, err := net.Listen("tcp", addr)
 			if err != nil {
 				return fmt.Errorf("failed to listen: %w", err)
 			}
 
 			defer listener.Close()
 
-			server := &http.Server{Addr: ":0", Handler: mux}
+			server := &http.Server{Handler: mux}
 			go func() {
 				log.Print("Starting server on ", listener.Addr())
 				if err := openbrowser("http://" + listener.Addr().String()); err != nil {
@@ -125,6 +137,8 @@ func main() {
 	}
 }
 
+// openbrowser took from github.com/becheran/depgraph as it is
+// Thanks to becheran
 func openbrowser(url string) (err error) {
 	switch runtime.GOOS {
 	case "linux":
