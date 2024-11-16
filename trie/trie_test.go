@@ -44,12 +44,12 @@ func TestPathTrie(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := trie.NewPathTrie()
+			tr := trie.New()
 			for _, p := range tt.paths {
 				tr.Put(p)
 			}
 
-			if got, want := tr.NodesCount(), tt.total; got != want {
+			if got, want := tr.Count(), tt.total; got != want {
 				t.Log("\n" + tr.String())
 				t.Errorf("unexpected total; got = %d, want = %d", got, want)
 			}
@@ -67,7 +67,10 @@ func TestPathTriePrefixCheck(t *testing.T) {
 			name:  "empty trie",
 			paths: []string{},
 			prefixes: map[string]bool{
-				"/a": true, // root node always exists
+				// Because trie is empty with no children for root node.
+				// I think it good behavior if we don't have any paths in trie return false.
+				// It can be edge case, if no any deps and not miss with STD lib.
+				"a": false,
 			},
 		},
 		{
@@ -100,11 +103,34 @@ func TestPathTriePrefixCheck(t *testing.T) {
 				"/a/c":   false,
 			},
 		},
+		{
+			name: "go import paths",
+			paths: []string{
+				"github.com/user/repo",
+				"github.com/user/repo/pkg",
+				"golang.org/x/tools",
+				"golang.org/x/tools/go/analysis",
+			},
+			prefixes: map[string]bool{
+				"github.com":                     true,
+				"github.com/user":                true,
+				"github.com/user/repo":           true,
+				"github.com/user/repo/pkg":       true,
+				"github.com/user/repo/pkg/other": true, // like subpath of existing path
+				"golang.org":                     true,
+				"golang.org/x":                   true,
+				"golang.org/x/tools":             true,
+				"golang.org/x/tools/go":          true,
+				"golang.org/x/tools/go/analysis": true,
+				"golang.org/x/tools/go/packages": false,
+				"k8s.io":                         false,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := trie.NewPathTrie()
+			tr := trie.New()
 			for _, p := range tt.paths {
 				tr.Put(p)
 			}

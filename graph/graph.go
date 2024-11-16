@@ -46,9 +46,9 @@ type Graph struct {
 	edges []Edge
 }
 
-func New(root string) (*Graph, error) {
-	const maxGoroutines = 20 // TODO: make it configurable
-
+// New creates a new graph of dependencies starting from the root directory.
+// maxGoroutines is the maximum number of goroutines to use for parsing in parallel.
+func New(root string, maxGoroutines uint) (*Graph, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)

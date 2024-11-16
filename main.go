@@ -57,7 +57,7 @@ func main() {
 			root := cCtx.String("root")
 
 			log.Println("Creating graph...")
-			packageGraph, err := graph.New(root)
+			packageGraph, err := graph.New(root, 20)
 			if err != nil {
 				return fmt.Errorf("failed to build graph: %w", err)
 			}
