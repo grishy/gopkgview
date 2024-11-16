@@ -365,15 +365,12 @@ export default function App() {
 
 // Get and convert the initial data
 async function initialData() {
-  const [serverNodes, serverEdges] = await Promise.all([
-    fetch("/nodes").then((res) => res.json()),
-    fetch("/edges").then((res) => res.json()),
-  ]);
+  const { nodes, edges } = await fetch("/data").then((res) => res.json());
 
   // TODO: Add type here
   // type: "input"  - first node
   // type: "output" - with no children
-  const initialNodes = serverNodes.map((n) => {
+  const initialNodes = nodes.map((n) => {
     const label = n.PkgType !== "loc" ? n.ImportPath : n.Name;
     // TODO: Hack to make the width of the node dynamic
     const width = Math.max(100, label.length * 7);
@@ -390,7 +387,7 @@ async function initialData() {
     };
   });
 
-  const initialEdges = serverEdges.map((e) => ({
+  const initialEdges = edges.map((e) => ({
     id: `${e.From}-${e.To}`,
     source: e.From,
     target: e.To,

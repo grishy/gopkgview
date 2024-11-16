@@ -28,7 +28,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
-	log.SetFlags(log.Lmicroseconds) // We don't need the date, time enough
+	log.SetFlags(log.Lmicroseconds) // We are not long-running, time is enough
 
 	// Add a handler for force exiting if we don't exit gracefully (stuck)
 	go func() {
@@ -76,20 +76,20 @@ func main() {
 			log.Println("Graph created")
 
 			// Generate JSON blob for the UI
-			nodesJSON, err := json.Marshal(packageGraph.Nodes())
-			if err != nil {
-				return fmt.Errorf("failed to marshal nodes: %w", err)
+			frontendData := map[string]interface{}{
+				"nodes": packageGraph.Nodes(),
+				"edges": packageGraph.Edges(),
 			}
 
-			edgesJSON, err := json.Marshal(packageGraph.Edges())
+			dataJSON, err := json.Marshal(frontendData)
 			if err != nil {
-				return fmt.Errorf("failed to marshal edges: %w", err)
+				return fmt.Errorf("failed to marshal to JSON: %w", err)
 			}
 
 			// Serve the JSON blob
 			handler := func(data []byte) http.HandlerFunc {
 				return func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Access-Control-Allow-Origin", "*") // TODO: remove this?
+					w.Header().Set("Access-Control-Allow-Origin", "*") // Disable CORS for simplicity of UI development
 					w.Header().Set("Content-Type", "application/json")
 					w.Write(data)
 				}
@@ -101,8 +101,7 @@ func main() {
 			}
 
 			mux := http.NewServeMux()
-			mux.Handle("/nodes", handler(nodesJSON))
-			mux.Handle("/edges", handler(edgesJSON))
+			mux.Handle("/data", handler(dataJSON))
 			mux.Handle("/", http.FileServer(http.FS(fsys)))
 
 			// Start on any available port
