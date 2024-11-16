@@ -73,7 +73,8 @@ func New(root string, maxGoroutines uint) (*Graph, error) {
 		edges: []Edge{},
 	}
 
-	graph.buildCtx.CgoEnabled = false // TODO: Check if this is needed
+	// graph.buildCtx.GOPATH = absRoot
+	graph.buildCtx.Dir = absRoot
 
 	graph.parseWg.Add(1)
 	go graph.recurseImport(".", absRoot)
@@ -165,7 +166,7 @@ func parseGoMod(root string) (*trie.PathTrie, error) {
 		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
 
-	trieIndex := trie.NewPathTrie()
+	trieIndex := trie.New()
 	for _, require := range gomod.Require {
 		trieIndex.Put(require.Mod.Path)
 	}

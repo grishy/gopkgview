@@ -1,6 +1,8 @@
 // Package trie provides a prefix tree optimized for Go import paths,
 // offering O(m) operations where m is the path length. Specialized
 // for module path lookups in go.mod files.
+
+// Implementation is based on https://github.com/dghubble/trie
 package trie
 
 import (
