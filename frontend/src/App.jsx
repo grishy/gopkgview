@@ -1,4 +1,9 @@
-import React, { useLayoutEffect, useCallback, useState } from "react";
+import React, {
+  useLayoutEffect,
+  useCallback,
+  useState,
+  useEffect,
+} from "react";
 import ELK from "elkjs/lib/elk.bundled.js";
 import {
   ReactFlow,
@@ -36,7 +41,9 @@ const elkOptions = {
   "elk.spacing.edgeNode": 50,
 };
 
-const { initialNodes, initialEdges } = await initialData();
+const bgColorErr = "#ffefef";
+const bgColorStd = "#ecfccb";
+const bgColorExt = "#eff6ff";
 
 const getLayoutedElements = async (nodes, edges) => {
   // Convert for ELK
@@ -81,21 +88,79 @@ const getLayoutedElements = async (nodes, edges) => {
   }
 };
 
+// React contenxt
+// tanstackqeury
 function LayoutFlow() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const { fitView } = useReactFlow();
+  const [initialNodes, setInitialNodes] = useState([]);
+  const [initialEdges, setInitialEdges] = useState([]);
 
-  const [displayStd, setDisplayStd] = useState(false);
-  const [displayLoc, setDisplayLoc] = useState(true);
-  const [displayExt, setDisplayExt] = useState(false);
-  const [displayErr, setDisplayErr] = useState(false);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [params, setParams] = useState({
+    displayStd: false,
+    displayExt: false,
+    displayErr: true,
+    onlySelectedEdges: false,
+  });
 
   const [selectedNode, setSelectedNode] = useState(null);
-  const [onlySelectedEdges, setOnlySelectedEdges] = useState(false);
   const [hoveredNode, setHoveredNode] = useState(null);
 
-  const onLayout = useCallback(async () => {
+  const { fitView } = useReactFlow();
+
+  // Calculate the initial layout on mount.
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const resp = await fetch("/data").then((res) => res.json());
+
+        const initialNodes = resp.nodes.map((n) => {
+          const label = n.PkgType !== "loc" ? n.ImportPath : n.Name;
+          const width = Math.max(100, label.length * 7);
+          const height = 40;
+
+          return {
+            id: n.ImportPath,
+            data: { label },
+            position: { x: 0, y: 0 },
+            pkgType: n.PkgType,
+            style: nodeStyle(n.PkgType),
+            width,
+            height,
+          };
+        });
+
+        const initialEdges = resp.edges.map((e) => ({
+          id: `${e.From}-${e.To}`,
+          source: e.From,
+          target: e.To,
+        }));
+
+        setInitialNodes(initialNodes);
+        setInitialEdges(initialEdges);
+        setNodes(initialNodes);
+        setEdges(initialEdges);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!loading && nodes.length > 0) {
+      onLayout();
+    }
+  }, [loading, nodes.length]);
+
+  const onLayout = async () => {
     let selected = initialNodes;
     if (selectedNode) {
       selected = [];
@@ -134,10 +199,10 @@ function LayoutFlow() {
 
     const filteredNodes = selected.filter((n) => {
       if (selectedNode && n.id === selectedNode.id) return true;
-      if (n.pkgType === "std") return displayStd;
-      if (n.pkgType === "loc") return displayLoc;
-      if (n.pkgType === "ext") return displayExt;
-      if (n.pkgType === "err") return displayErr;
+      if (n.pkgType === "loc") return true;
+      if (n.pkgType === "std") return params.displayStd;
+      if (n.pkgType === "ext") return params.displayExt;
+      if (n.pkgType === "err") return params.displayErr;
 
       throw new Error("Unknown node type " + n.pkgType);
     });
@@ -148,8 +213,7 @@ function LayoutFlow() {
         filteredNodes.find((n) => n.id === e.target)
     );
 
-    if (onlySelectedEdges) {
-      console.log("onlySelectedEdges");
+    if (params.onlySelectedEdges) {
       filteredEdges = filteredEdges.filter(
         (e) => selectedNode.id === e.source || selectedNode.id === e.target
       );
@@ -169,26 +233,7 @@ function LayoutFlow() {
     setTimeout(() => {
       window.requestAnimationFrame(() => fitView());
     }, 20);
-  }, [
-    displayStd,
-    displayLoc,
-    displayExt,
-    displayErr,
-    selectedNode,
-    onlySelectedEdges,
-  ]);
-
-  // Calculate the initial layout on mount.
-  useLayoutEffect(() => {
-    onLayout();
-  }, [
-    displayStd,
-    displayLoc,
-    displayExt,
-    displayErr,
-    selectedNode,
-    onlySelectedEdges,
-  ]);
+  };
 
   // TODO: simplify this
   const onNodeMouseEnter = useCallback((event, node) => {
@@ -199,12 +244,16 @@ function LayoutFlow() {
     setHoveredNode(null);
   }, []);
 
-  const onNodeClick = useCallback((event, node) => {
+  const onNodeClick = (event, node) => {
     setSelectedNode(node);
-  }, []);
+  };
+
+  useEffect(() => {
+    onLayout();
+  }, [params, selectedNode]);
 
   // Effect to update styles based on hovered node
-  useLayoutEffect(() => {
+  useEffect(() => {
     // Build a set of connected node IDs including the hovered node
     const connectedNodeIds = new Set();
     const hoveredNodeId = hoveredNode?.id;
@@ -286,19 +335,24 @@ function LayoutFlow() {
     );
   }, [hoveredNode]);
 
-  function ControlButton(text, getter, setter) {
+  function ControlButton(text, bgColor, getter, onClick) {
     return (
       <div
-        onClick={() => setter(!getter)}
+        onClick={onClick}
         className={`gopkgview-mode-btn ${
           getter ? "gopkgview-mode-btn-active" : ""
         }`}
+        style={{
+          backgroundColor: bgColor,
+        }}
       >
         {text}
       </div>
     );
   }
 
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
   return (
     <ReactFlow
       nodes={nodes}
@@ -319,7 +373,7 @@ function LayoutFlow() {
             <div className="gopkgview-ctrl-top">
               <div
                 onClick={() => {
-                  setOnlySelectedEdges(false);
+                  setParams({ ...params, onlySelectedEdges: false });
                   setHoveredNode(null);
                   setSelectedNode(null);
                 }}
@@ -330,20 +384,30 @@ function LayoutFlow() {
               <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
             </div>
             <div
-              onClick={() => setOnlySelectedEdges(!onlySelectedEdges)}
+              onClick={() =>
+                setParams({
+                  ...params,
+                  onlySelectedEdges: !params.onlySelectedEdges,
+                })
+              }
               className="gopkgview-ctrl-only"
             >
-              Only direct edges {onlySelectedEdges ? "ON" : "OFF"}
+              Only direct edges {params.onlySelectedEdges ? "ON" : "OFF"}
             </div>
           </div>
         )}
       </Panel>
       <Panel position="top-right">
         <div className="gopkgview-mode">
-          {ControlButton("STD", displayStd, setDisplayStd)}
-          {ControlButton("Loc", displayLoc, setDisplayLoc)}
-          {ControlButton("External", displayExt, setDisplayExt)}
-          {ControlButton("Error", displayErr, setDisplayErr)}
+          {ControlButton("Std", bgColorStd, params.displayStd, () =>
+            setParams({ ...params, displayStd: !params.displayStd })
+          )}
+          {ControlButton("External", bgColorExt, params.displayExt, () =>
+            setParams({ ...params, displayExt: !params.displayExt })
+          )}
+          {ControlButton("Parse Error", bgColorErr, params.displayErr, () =>
+            setParams({ ...params, displayErr: !params.displayErr })
+          )}
         </div>
       </Panel>
       <Controls />
@@ -363,53 +427,20 @@ export default function App() {
   );
 }
 
-// Get and convert the initial data
-async function initialData() {
-  const { nodes, edges } = await fetch("/data").then((res) => res.json());
-
-  // TODO: Add type here
-  // type: "input"  - first node
-  // type: "output" - with no children
-  const initialNodes = nodes.map((n) => {
-    const label = n.PkgType !== "loc" ? n.ImportPath : n.Name;
-    // TODO: Hack to make the width of the node dynamic
-    const width = Math.max(100, label.length * 7);
-    const height = 40;
-
-    return {
-      id: n.ImportPath,
-      data: { label },
-      position: { x: 0, y: 0 },
-      pkgType: n.PkgType,
-      style: nodeStyle(n.PkgType),
-      width,
-      height,
-    };
-  });
-
-  const initialEdges = edges.map((e) => ({
-    id: `${e.From}-${e.To}`,
-    source: e.From,
-    target: e.To,
-  }));
-
-  return { initialNodes, initialEdges };
-}
-
 function nodeStyle(nodeType) {
   switch (nodeType) {
     case "std":
       return {
-        backgroundColor: "#ecfccb",
+        backgroundColor: bgColorStd,
       };
     case "ext":
       return {
-        backgroundColor: "#eff6ff",
+        backgroundColor: bgColorExt,
       };
     // TODO: Debug this case
     case "err":
       return {
-        backgroundColor: "#ffefef",
+        backgroundColor: bgColorErr,
       };
     default:
       return {};

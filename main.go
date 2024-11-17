@@ -28,7 +28,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
-	log.SetFlags(log.Lmicroseconds) // We are not long-running, time is enough
+	// We are not long-running, time is enough
+	log.SetFlags(log.Lmicroseconds)
 
 	// Add a handler for force exiting if we don't exit gracefully (stuck)
 	go func() {
