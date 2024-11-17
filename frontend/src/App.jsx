@@ -4,21 +4,27 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import ELK from "elkjs/lib/elk.bundled.js";
 import {
   ReactFlow,
   MiniMap,
-  Controls,
   Background,
-  Panel,
   ReactFlowProvider,
   MarkerType,
   useNodesState,
   useEdgesState,
   useReactFlow,
 } from "@xyflow/react";
+import ELK from "elkjs/lib/elk.bundled.js";
+
+import Controls from "./Controls";
 
 import "@xyflow/react/dist/style.css";
+
+const typeToColor = {
+  std: "#ecfccb",
+  ext: "#eff6ff",
+  err: "#ffefef",
+};
 
 const elk = new ELK();
 
@@ -40,10 +46,6 @@ const elkOptions = {
   "elk.spacing.edgeEdge": 20,
   "elk.spacing.edgeNode": 50,
 };
-
-const bgColorErr = "#ffefef";
-const bgColorStd = "#ecfccb";
-const bgColorExt = "#eff6ff";
 
 const getLayoutedElements = async (nodes, edges) => {
   // Convert for ELK
@@ -88,8 +90,6 @@ const getLayoutedElements = async (nodes, edges) => {
   }
 };
 
-// React contenxt
-// tanstackqeury
 function LayoutFlow() {
   const [initialNodes, setInitialNodes] = useState([]);
   const [initialEdges, setInitialEdges] = useState([]);
@@ -112,7 +112,6 @@ function LayoutFlow() {
 
   const { fitView } = useReactFlow();
 
-  // Calculate the initial layout on mount.
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -120,7 +119,9 @@ function LayoutFlow() {
 
         const initialNodes = resp.nodes.map((n) => {
           const label = n.PkgType !== "loc" ? n.ImportPath : n.Name;
-          const width = Math.max(100, label.length * 7);
+          // Yes, this is a hack to make the nodes wider if needed...
+          // Yes, this is not a monospace font, so it's not perfect.
+          const width = Math.max(80, label.length * 7);
           const height = 40;
 
           return {
@@ -128,7 +129,9 @@ function LayoutFlow() {
             data: { label },
             position: { x: 0, y: 0 },
             pkgType: n.PkgType,
-            style: nodeStyle(n.PkgType),
+            style: {
+              background: typeToColor[n.PkgType],
+            },
             width,
             height,
           };
@@ -335,22 +338,6 @@ function LayoutFlow() {
     );
   }, [hoveredNode]);
 
-  function ControlButton(text, bgColor, getter, onClick) {
-    return (
-      <div
-        onClick={onClick}
-        className={`gopkgview-mode-btn ${
-          getter ? "gopkgview-mode-btn-active" : ""
-        }`}
-        style={{
-          backgroundColor: bgColor,
-        }}
-      >
-        {text}
-      </div>
-    );
-  }
-
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
   return (
@@ -362,55 +349,18 @@ function LayoutFlow() {
       onEdgesChange={onEdgesChange}
       onNodeMouseEnter={onNodeMouseEnter}
       onNodeMouseLeave={onNodeMouseLeave}
-      minZoom={0.2}
-      maxZoom={4}
+      minZoom={0.1}
+      maxZoom={2}
       fitView
       fitViewOptions={{ padding: 0.5 }}
     >
-      <Panel position="top-left">
-        {selectedNode && (
-          <div className="gopkgview-ctrl">
-            <div className="gopkgview-ctrl-top">
-              <div
-                onClick={() => {
-                  setParams({ ...params, onlySelectedEdges: false });
-                  setHoveredNode(null);
-                  setSelectedNode(null);
-                }}
-                className="gopkgview-ctrl-close"
-              >
-                Close
-              </div>
-              <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
-            </div>
-            <div
-              onClick={() =>
-                setParams({
-                  ...params,
-                  onlySelectedEdges: !params.onlySelectedEdges,
-                })
-              }
-              className="gopkgview-ctrl-only"
-            >
-              Only direct edges {params.onlySelectedEdges ? "ON" : "OFF"}
-            </div>
-          </div>
-        )}
-      </Panel>
-      <Panel position="top-right">
-        <div className="gopkgview-mode">
-          {ControlButton("Std", bgColorStd, params.displayStd, () =>
-            setParams({ ...params, displayStd: !params.displayStd })
-          )}
-          {ControlButton("External", bgColorExt, params.displayExt, () =>
-            setParams({ ...params, displayExt: !params.displayExt })
-          )}
-          {ControlButton("Parse Error", bgColorErr, params.displayErr, () =>
-            setParams({ ...params, displayErr: !params.displayErr })
-          )}
-        </div>
-      </Panel>
-      <Controls />
+      <Controls
+        setParams={setParams}
+        setHoveredNode={setHoveredNode}
+        setSelectedNode={setSelectedNode}
+        params={params}
+        selectedNode={selectedNode}
+      />
       <MiniMap />
       <Background variant="dots" gap={12} size={1} />
     </ReactFlow>
@@ -425,24 +375,4 @@ export default function App() {
       </ReactFlowProvider>
     </div>
   );
-}
-
-function nodeStyle(nodeType) {
-  switch (nodeType) {
-    case "std":
-      return {
-        backgroundColor: bgColorStd,
-      };
-    case "ext":
-      return {
-        backgroundColor: bgColorExt,
-      };
-    // TODO: Debug this case
-    case "err":
-      return {
-        backgroundColor: bgColorErr,
-      };
-    default:
-      return {};
-  }
 }

@@ -1,0 +1,28 @@
+.gopkgview-mode-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+
+    cursor: pointer;
+    user-select: none;
+    border-radius: 0.5rem;
+
+    color: rgb(0, 0, 0);
+    background-color: rgb(238, 238, 238);
+
+    transition: background-color 0.2s;
+}
+
+.gopkgview-mode-btn:hover {
+    background-color: rgb(203, 203, 203);
+}
+
+.gopkgview-mode-btn-active {
+    background-color: rgb(22, 163, 74);
+    color: rgb(255, 255, 255);
+}
+
+.gopkgview-mode-btn-active:hover {
+    background-color: rgb(20, 136, 62);
+}
