@@ -30,10 +30,8 @@ const elk = new ELK();
 
 // Elk has a *huge* amount of options to configure. To see everything you can
 // tweak check out:
-//
 // - https://www.eclipse.org/elk/reference/algorithms.html
 // - https://www.eclipse.org/elk/reference/options.html
-// TODO: Review the options and adjust them by default.
 const elkOptions = {
   "elk.algorithm": "layered",
   "elk.direction": "RIGHT",
@@ -48,7 +46,6 @@ const elkOptions = {
 };
 
 const getLayoutedElements = async (nodes, edges) => {
-  // Convert for ELK
   // All fields will be passed to ELK and saved in the resulting node
   const graph = {
     id: "root",
@@ -60,30 +57,13 @@ const getLayoutedElements = async (nodes, edges) => {
   // Run ELK and convert to React Flow format
   try {
     const layoutedGraph = await elk.layout(graph);
-
     return {
       nodes: layoutedGraph.children.map((n) => ({
         ...n,
         position: { x: n.x, y: n.y },
-
-        targetPosition: "left",
-        sourcePosition: "right",
-
-        connectable: false,
-        deletable: false,
       })),
 
-      edges: layoutedGraph.edges.map((e) => ({
-        ...e,
-
-        deletable: false,
-        reconnectable: false,
-        markerEnd: {
-          type: MarkerType.Arrow,
-          width: 24,
-          height: 24,
-        },
-      })),
+      edges: layoutedGraph.edges,
     };
   } catch (data) {
     return console.error(data);
@@ -112,6 +92,7 @@ function LayoutFlow() {
 
   const { fitView } = useReactFlow();
 
+  // Initial data download
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -126,14 +107,19 @@ function LayoutFlow() {
 
           return {
             id: n.ImportPath,
+            pkgType: n.PkgType,
+            width,
+            height,
+            // React Flow options
             data: { label },
             position: { x: 0, y: 0 },
-            pkgType: n.PkgType,
             style: {
               background: typeToColor[n.PkgType],
             },
-            width,
-            height,
+            targetPosition: "left",
+            sourcePosition: "right",
+            connectable: false,
+            deletable: false,
           };
         });
 
@@ -141,6 +127,14 @@ function LayoutFlow() {
           id: `${e.From}-${e.To}`,
           source: e.From,
           target: e.To,
+          // React Flow options
+          deletable: false,
+          reconnectable: false,
+          markerEnd: {
+            type: MarkerType.Arrow,
+            width: 24,
+            height: 24,
+          },
         }));
 
         setInitialNodes(initialNodes);
@@ -157,11 +151,17 @@ function LayoutFlow() {
     fetchData();
   }, []);
 
-  useLayoutEffect(() => {
-    if (!loading && nodes.length > 0) {
-      onLayout();
-    }
-  }, [loading, nodes.length]);
+  // Initial
+  useEffect(() => {
+    onLayout();
+  }, [
+    // Initial layout
+    initialNodes,
+    initialEdges,
+    // Update on changes
+    params,
+    selectedNode,
+  ]);
 
   const onLayout = async () => {
     let selected = initialNodes;
@@ -235,108 +235,16 @@ function LayoutFlow() {
     // TODO: Hack to force the fitView to run!
     setTimeout(() => {
       window.requestAnimationFrame(() => fitView());
-    }, 20);
+    }, 16);
   };
 
   // TODO: simplify this
-  const onNodeMouseEnter = useCallback((event, node) => {
-    setHoveredNode(node);
-  }, []);
-
-  const onNodeMouseLeave = useCallback(() => {
-    setHoveredNode(null);
-  }, []);
-
-  const onNodeClick = (event, node) => {
-    setSelectedNode(node);
-  };
-
-  useEffect(() => {
-    onLayout();
-  }, [params, selectedNode]);
 
   // Effect to update styles based on hovered node
-  useEffect(() => {
-    // Build a set of connected node IDs including the hovered node
-    const connectedNodeIds = new Set();
-    const hoveredNodeId = hoveredNode?.id;
-
-    if (hoveredNodeId) {
-      connectedNodeIds.add(hoveredNodeId);
-
-      edges.forEach((edge) => {
-        if (edge.source === hoveredNodeId) {
-          connectedNodeIds.add(edge.target);
-        } else if (edge.target === hoveredNodeId) {
-          connectedNodeIds.add(edge.source);
-        }
-      });
-    }
-
-    // Update node styles
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (hoveredNodeId && !connectedNodeIds.has(node.id)) {
-          return {
-            ...node,
-            style: {
-              ...node.style,
-              opacity: 0.2,
-            },
-          };
-        } else {
-          return {
-            ...node,
-            style: {
-              ...node.style,
-              opacity: 1.0,
-            },
-          };
-        }
-      })
-    );
-
-    // Update edge styles
-    setEdges((eds) =>
-      eds.map((edge) => {
-        if (hoveredNodeId) {
-          if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
-            return {
-              ...edge,
-              style: { stroke: "red" }, // Highlight connected edges
-              markerEnd: {
-                type: MarkerType.Arrow,
-                color: "red",
-                width: 32,
-                height: 32,
-              },
-            };
-          } else {
-            return {
-              ...edge,
-              style: { opacity: 0.1 }, // Make edge pale
-              markerEnd: {
-                type: MarkerType.Arrow,
-                color: null,
-                width: 24,
-                height: 24,
-              },
-            };
-          }
-        } else {
-          return {
-            ...edge,
-            style: {}, // Reset to default style
-            markerEnd: {
-              type: MarkerType.Arrow,
-              width: 24,
-              height: 24,
-            },
-          };
-        }
-      })
-    );
-  }, [hoveredNode]);
+  useEffect(
+    () => onHoverChange(hoveredNode, edges, setNodes, setEdges),
+    [hoveredNode]
+  );
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -344,17 +252,24 @@ function LayoutFlow() {
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      onNodeClick={onNodeClick}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
-      onNodeMouseEnter={onNodeMouseEnter}
-      onNodeMouseLeave={onNodeMouseLeave}
+      onNodeClick={(event, node) => {
+        setSelectedNode(node);
+      }}
+      onNodeMouseEnter={(event, node) => {
+        setHoveredNode(node);
+      }}
+      onNodeMouseLeave={() => {
+        setHoveredNode(null);
+      }}
       minZoom={0.1}
-      maxZoom={2}
+      maxZoom={3}
       fitView
       fitViewOptions={{ padding: 0.5 }}
     >
       <Controls
+        hoveredNode={hoveredNode}
         setParams={setParams}
         setHoveredNode={setHoveredNode}
         setSelectedNode={setSelectedNode}
@@ -374,5 +289,87 @@ export default function App() {
         <LayoutFlow />
       </ReactFlowProvider>
     </div>
+  );
+}
+
+function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
+  // Build a set of connected node IDs including the hovered node
+  const connectedNodeIds = new Set();
+  const hoveredNodeId = hoveredNode?.id;
+
+  if (hoveredNodeId) {
+    connectedNodeIds.add(hoveredNodeId);
+
+    edges.forEach((edge) => {
+      if (edge.source === hoveredNodeId) {
+        connectedNodeIds.add(edge.target);
+      } else if (edge.target === hoveredNodeId) {
+        connectedNodeIds.add(edge.source);
+      }
+    });
+  }
+
+  // Update node styles
+  setNodes((nds) =>
+    nds.map((node) => {
+      if (hoveredNodeId && !connectedNodeIds.has(node.id)) {
+        return {
+          ...node,
+          style: {
+            ...node.style,
+            opacity: 0.2,
+          },
+        };
+      } else {
+        return {
+          ...node,
+          style: {
+            ...node.style,
+            opacity: 1.0,
+          },
+        };
+      }
+    })
+  );
+
+  // Update edge styles
+  setEdges((eds) =>
+    eds.map((edge) => {
+      if (hoveredNodeId) {
+        if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
+          return {
+            ...edge,
+            style: { stroke: "red" }, // Highlight connected edges
+            markerEnd: {
+              type: MarkerType.Arrow,
+              color: "red",
+              width: 32,
+              height: 32,
+            },
+          };
+        } else {
+          return {
+            ...edge,
+            style: { opacity: 0.1 }, // Make edge pale
+            markerEnd: {
+              type: MarkerType.Arrow,
+              color: null,
+              width: 24,
+              height: 24,
+            },
+          };
+        }
+      } else {
+        return {
+          ...edge,
+          style: {}, // Reset to default style
+          markerEnd: {
+            type: MarkerType.Arrow,
+            width: 24,
+            height: 24,
+          },
+        };
+      }
+    })
   );
 }

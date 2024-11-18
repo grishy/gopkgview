@@ -54,6 +54,7 @@ function Selected({
 }
 
 export default function Controls({
+  hoveredNode,
   params,
   setParams,
   setHoveredNode,
@@ -62,16 +63,16 @@ export default function Controls({
 }) {
   const controlModeBtn = [
     {
-      text: "Std",
-      description: "Show standard library packages of Go.",
-      getter: params.displayStd,
-      onClick: () => setParams({ ...params, displayStd: !params.displayStd }),
-    },
-    {
       text: "External",
       getter: params.displayExt,
       description: "Show external packages. Base on go.mod.",
       onClick: () => setParams({ ...params, displayExt: !params.displayExt }),
+    },
+    {
+      text: "Std",
+      description: "Show standard library packages of Go.",
+      getter: params.displayStd,
+      onClick: () => setParams({ ...params, displayStd: !params.displayStd }),
     },
     {
       text: "Failed",
@@ -99,6 +100,11 @@ export default function Controls({
             <ControlButton key={i} {...btn} />
           ))}
         </div>
+        {hoveredNode && (
+          <div className="gopkgview-hovered">
+            {hoveredNode.id === "." ? "This is a root" : hoveredNode.id}
+          </div>
+        )}
       </Panel>
     </>
   );

@@ -1,3 +1,18 @@
+/* Contols mode switcher */
+.gopkgview-mode {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(238, 238, 238);
+    background-color: rgb(255, 255, 255);
+    padding: 0.25rem;
+
+    /* Push to right and not expand if hover is bigger */
+    width: fit-content;
+    margin-left: auto;
+}
+
 .gopkgview-mode-btn {
     display: flex;
     justify-content: center;
@@ -25,4 +40,14 @@
 
 .gopkgview-mode-btn-active:hover {
     background-color: rgb(20, 136, 62);
+}
+
+/* Hovered package */
+.gopkgview-hovered {
+    border-radius: 0.5rem;
+    border: 1px solid rgb(238, 238, 238);
+    background-color: rgb(255, 255, 255);
+    float: right;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
 }
