@@ -53,7 +53,7 @@ function Selected({
   );
 }
 
-export default function Controls({
+export default function GoPkgViewControls({
   hoveredNode,
   params,
   setParams,

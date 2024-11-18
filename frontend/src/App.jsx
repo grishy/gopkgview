@@ -7,6 +7,7 @@ import React, {
 import {
   ReactFlow,
   MiniMap,
+  Controls,
   Background,
   ReactFlowProvider,
   MarkerType,
@@ -16,15 +17,9 @@ import {
 } from "@xyflow/react";
 import ELK from "elkjs/lib/elk.bundled.js";
 
-import Controls from "./Controls";
+import GoPkgViewControls from "./GoPkgViewControls";
 
 import "@xyflow/react/dist/style.css";
-
-const typeToColor = {
-  std: "#ecfccb",
-  ext: "#eff6ff",
-  err: "#ffefef",
-};
 
 const elk = new ELK();
 
@@ -45,28 +40,32 @@ const elkOptions = {
   "elk.spacing.edgeNode": 50,
 };
 
+const typeToColor = {
+  std: "#ecfccb",
+  ext: "#eff6ff",
+  err: "#ffefef",
+};
+
 const getLayoutedElements = async (nodes, edges) => {
   // All fields will be passed to ELK and saved in the resulting node
-  const graph = {
+  const elkGraph = {
     id: "root",
     layoutOptions: elkOptions,
     edges,
     children: nodes,
   };
 
-  // Run ELK and convert to React Flow format
   try {
-    const layoutedGraph = await elk.layout(graph);
-    return {
-      nodes: layoutedGraph.children.map((n) => ({
-        ...n,
-        position: { x: n.x, y: n.y },
-      })),
+    const { children, edges: layoutedEdges } = await elk.layout(elkGraph);
+    const layoutedNodes = children.map(({ x, y, ...node }) => ({
+      ...node,
+      position: { x, y },
+    }));
 
-      edges: layoutedGraph.edges,
-    };
-  } catch (data) {
-    return console.error(data);
+    return { nodes: layoutedNodes, edges: layoutedEdges };
+  } catch (error) {
+    console.error("ELK layout failed:", error);
+    return { nodes, edges };
   }
 };
 
@@ -94,56 +93,48 @@ function LayoutFlow() {
 
   // Initial data download
   useEffect(() => {
+    const createNode = (n) => ({
+      id: n.ImportPath,
+      pkgType: n.PkgType,
+      // TODO: Either use a monospace font or calculate the width better?
+      width: Math.max(
+        80,
+        (n.PkgType !== "loc" ? n.ImportPath : n.Name).length * 7
+      ),
+      height: 40,
+      // React Flow options
+      data: { label: n.PkgType !== "loc" ? n.ImportPath : n.Name },
+      position: { x: 0, y: 0 },
+      style: { background: typeToColor[n.PkgType] },
+      targetPosition: "left",
+      sourcePosition: "right",
+      connectable: false,
+      deletable: false,
+    });
+
+    const createEdge = (e) => ({
+      id: `${e.From}-${e.To}`,
+      source: e.From,
+      target: e.To,
+      // React Flow options
+      deletable: false,
+      reconnectable: false,
+      markerEnd: { type: MarkerType.Arrow, width: 24, height: 24 },
+    });
+
     const fetchData = async () => {
       try {
-        const resp = await fetch("/data").then((res) => res.json());
-
-        const initialNodes = resp.nodes.map((n) => {
-          const label = n.PkgType !== "loc" ? n.ImportPath : n.Name;
-          // Yes, this is a hack to make the nodes wider if needed...
-          // Yes, this is not a monospace font, so it's not perfect.
-          const width = Math.max(80, label.length * 7);
-          const height = 40;
-
-          return {
-            id: n.ImportPath,
-            pkgType: n.PkgType,
-            width,
-            height,
-            // React Flow options
-            data: { label },
-            position: { x: 0, y: 0 },
-            style: {
-              background: typeToColor[n.PkgType],
-            },
-            targetPosition: "left",
-            sourcePosition: "right",
-            connectable: false,
-            deletable: false,
-          };
-        });
-
-        const initialEdges = resp.edges.map((e) => ({
-          id: `${e.From}-${e.To}`,
-          source: e.From,
-          target: e.To,
-          // React Flow options
-          deletable: false,
-          reconnectable: false,
-          markerEnd: {
-            type: MarkerType.Arrow,
-            width: 24,
-            height: 24,
-          },
-        }));
+        const { nodes, edges } = await fetch("/data").then((res) => res.json());
+        const initialNodes = nodes.map(createNode);
+        const initialEdges = edges.map(createEdge);
 
         setInitialNodes(initialNodes);
         setInitialEdges(initialEdges);
         setNodes(initialNodes);
         setEdges(initialEdges);
-        setLoading(false);
       } catch (err) {
         setError(err.message);
+      } finally {
         setLoading(false);
       }
     };
@@ -153,7 +144,16 @@ function LayoutFlow() {
 
   // Initial
   useEffect(() => {
-    onLayout();
+    onLayout({
+      initialNodes,
+      initialEdges,
+      params,
+      selectedNode,
+      setNodes,
+      setEdges,
+      fitView,
+    });
+    setHoveredNode(null);
   }, [
     // Initial layout
     initialNodes,
@@ -162,83 +162,6 @@ function LayoutFlow() {
     params,
     selectedNode,
   ]);
-
-  const onLayout = async () => {
-    let selected = initialNodes;
-    if (selectedNode) {
-      selected = [];
-      const sid = selectedNode.id;
-
-      for (const n of initialNodes) {
-        if (n.id === sid) {
-          n.style = {
-            ...n.style,
-            border: "2px solid rgb(16 185 129)",
-          };
-          selected.push(n);
-          continue;
-        }
-        for (const e of initialEdges) {
-          if (e.source === n.id && e.target === sid) {
-            n.style = {
-              ...n.style,
-              border: "2px solid rgb(249 115 22)",
-            };
-            selected.push(n);
-            break;
-          }
-
-          if (e.target === n.id && e.source === sid) {
-            n.style = {
-              ...n.style,
-              border: "2px solid rgb(120 113 108)",
-            };
-            selected.push(n);
-            break;
-          }
-        }
-      }
-    }
-
-    const filteredNodes = selected.filter((n) => {
-      if (selectedNode && n.id === selectedNode.id) return true;
-      if (n.pkgType === "loc") return true;
-      if (n.pkgType === "std") return params.displayStd;
-      if (n.pkgType === "ext") return params.displayExt;
-      if (n.pkgType === "err") return params.displayErr;
-
-      throw new Error("Unknown node type " + n.pkgType);
-    });
-
-    let filteredEdges = initialEdges.filter(
-      (e) =>
-        filteredNodes.find((n) => n.id === e.source) &&
-        filteredNodes.find((n) => n.id === e.target)
-    );
-
-    if (params.onlySelectedEdges) {
-      filteredEdges = filteredEdges.filter(
-        (e) => selectedNode.id === e.source || selectedNode.id === e.target
-      );
-    }
-
-    const { nodes, edges } = await getLayoutedElements(
-      filteredNodes,
-      filteredEdges
-    );
-
-    // Fit the view after the layout is done
-    setNodes(nodes);
-    setEdges(edges);
-    setHoveredNode(null);
-
-    // TODO: Hack to force the fitView to run!
-    setTimeout(() => {
-      window.requestAnimationFrame(() => fitView());
-    }, 16);
-  };
-
-  // TODO: simplify this
 
   // Effect to update styles based on hovered node
   useEffect(
@@ -268,7 +191,9 @@ function LayoutFlow() {
       fitView
       fitViewOptions={{ padding: 0.5 }}
     >
-      <Controls
+      <MiniMap nodeStrokeWidth={3} />
+      <Controls />
+      <GoPkgViewControls
         hoveredNode={hoveredNode}
         setParams={setParams}
         setHoveredNode={setHoveredNode}
@@ -276,7 +201,6 @@ function LayoutFlow() {
         params={params}
         selectedNode={selectedNode}
       />
-      <MiniMap />
       <Background variant="dots" gap={12} size={1} />
     </ReactFlow>
   );
@@ -291,47 +215,141 @@ export default function App() {
     </div>
   );
 }
+
+async function onLayout({
+  initialNodes,
+  initialEdges,
+  params,
+  selectedNode,
+  setNodes,
+  setEdges,
+  fitView,
+}) {
+  let selected = initialNodes;
+
+  if (selectedNode) {
+    const selectedId = selectedNode.id;
+
+    selected = initialNodes.filter((node) => {
+      // Include the selected node itself
+      if (node.id === selectedId) return true;
+
+      // Include nodes that have direct connections with the selected node
+      return initialEdges.some(
+        (edge) =>
+          (edge.source === node.id && edge.target === selectedId) ||
+          (edge.target === node.id && edge.source === selectedId)
+      );
+    });
+  }
+
+  const filteredNodes = selected.filter((n) => {
+    if (selectedNode && n.id === selectedNode.id) return true;
+    if (n.pkgType === "loc") return true;
+    if (n.pkgType === "std") return params.displayStd;
+    if (n.pkgType === "ext") return params.displayExt;
+    if (n.pkgType === "err") return params.displayErr;
+
+    throw new Error("Unknown node type " + n.pkgType);
+  });
+
+  let filteredEdges = initialEdges.filter(
+    ({ source, target }) =>
+      filteredNodes.some((node) => node.id === source) &&
+      filteredNodes.some((node) => node.id === target)
+  );
+
+  if (params.onlySelectedEdges) {
+    filteredEdges = filteredEdges.filter(
+      (e) => selectedNode.id === e.source || selectedNode.id === e.target
+    );
+  }
+
+  const layout = await getLayoutedElements(filteredNodes, filteredEdges);
+
+  // Update type to not show connections dots everywhere on node fron both sides
+  layout.nodes.forEach((node) => {
+    const hasInput = filteredEdges.some((edge) => edge.target === node.id);
+    const hasOutput = filteredEdges.some((edge) => edge.source === node.id);
+
+    if (hasInput && hasOutput) {
+      node.type = "default";
+    } else if (hasInput) {
+      node.type = "output";
+    } else if (hasOutput) {
+      node.type = "input";
+    }
+  });
+
+  setNodes(layout.nodes);
+  setEdges(layout.edges);
+
+  // Fit the view after the layout is done
+  setTimeout(() => {
+    window.requestAnimationFrame(() => fitView());
+  }, 20);
+}
+
 function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
-  const hoveredNodeId = hoveredNode?.id;
-  
-  if (!hoveredNodeId) {
-    // Reset all styles when no node is hovered
-    setNodes(nodes => nodes.map(node => ({ ...node, style: { ...node.style, opacity: 1.0 } })));
-    setEdges(edges => edges.map(edge => ({
-      ...edge,
-      style: {},
-      markerEnd: { type: MarkerType.Arrow, width: 24, height: 24 }
-    })));
+  const defaultMarker = { type: MarkerType.Arrow, width: 24, height: 24 };
+  const highlightedMarker = {
+    ...defaultMarker,
+    color: "red",
+    width: 32,
+    height: 32,
+  };
+
+  // Reset state when no node is hovered
+  if (!hoveredNode) {
+    setNodes((nodes) =>
+      nodes.map((node) => ({
+        ...node,
+        style: { ...node.style, opacity: 1.0 },
+      }))
+    );
+    setEdges((edges) =>
+      edges.map((edge) => ({
+        ...edge,
+        style: {},
+        markerEnd: defaultMarker,
+      }))
+    );
     return;
   }
 
-  // Find nodes that are connected to the hovered node
+  // Find all nodes connected to the hovered node
   const connectedNodes = new Set([
-    hoveredNodeId,
+    hoveredNode.id,
     ...edges
-      .filter(edge => edge.source === hoveredNodeId || edge.target === hoveredNodeId)
-      .flatMap(edge => [edge.source, edge.target])
+      .filter(
+        (edge) =>
+          edge.source === hoveredNode.id || edge.target === hoveredNode.id
+      )
+      .flatMap((edge) => [edge.source, edge.target]),
   ]);
 
-  // Update nodes
-  setNodes(nodes => nodes.map(node => ({
-    ...node,
-    style: {
-      ...node.style,
-      opacity: connectedNodes.has(node.id) ? 1.0 : 0.2
-    }
-  })));
+  // Update node visibility
+  setNodes((nodes) =>
+    nodes.map((node) => ({
+      ...node,
+      style: {
+        ...node.style,
+        opacity: connectedNodes.has(node.id) ? 1.0 : 0.2,
+      },
+    }))
+  );
 
-  // Update edges
-  setEdges(edges => edges.map(edge => {
-    const isConnected = edge.source === hoveredNodeId || edge.target === hoveredNodeId;
-    return {
-      ...edge,
-      style: isConnected ? { stroke: "red" } : { opacity: 0.1 },
-      markerEnd: {
-        type: MarkerType.Arrow,
-        ...(isConnected ? { color: "red", width: 32, height: 32 } : { width: 24, height: 24 })
-      }
-    };
-  }));
+  // Update edge styling
+  setEdges((edges) =>
+    edges.map((edge) => {
+      const isConnected =
+        edge.source === hoveredNode.id || edge.target === hoveredNode.id;
+
+      return {
+        ...edge,
+        style: isConnected ? { stroke: "red" } : { opacity: 0.1 },
+        markerEnd: isConnected ? highlightedMarker : defaultMarker,
+      };
+    })
+  );
 }
