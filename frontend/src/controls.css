@@ -1,19 +1,4 @@
-/* Contols mode switcher */
-.gopkgview-mode {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
-    border-radius: 0.5rem;
-    border: 1px solid rgb(238, 238, 238);
-    background-color: rgb(255, 255, 255);
-    padding: 0.25rem;
-
-    /* Push to right and not expand if hover is bigger */
-    width: fit-content;
-    margin-left: auto;
-}
-
-.gopkgview-mode-btn {
+.gopkgview-btn {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -29,25 +14,84 @@
     transition: background-color 0.2s;
 }
 
-.gopkgview-mode-btn:hover {
+.gopkgview-btn:hover {
     background-color: rgb(203, 203, 203);
 }
 
-.gopkgview-mode-btn-active {
+.gopkgview-btn-active {
     background-color: rgb(22, 163, 74);
     color: rgb(255, 255, 255);
 }
 
-.gopkgview-mode-btn-active:hover {
+.gopkgview-btn-active:hover {
     background-color: rgb(20, 136, 62);
 }
 
+/* Contols mode switcher */
+.gopkgview-mode {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(238, 238, 238);
+    background-color: rgb(255, 255, 255);
+    padding: 0.25rem;
+
+    /* Push to right and not expand if hover is bigger */
+    width: fit-content;
+    margin-left: auto;
+}
+
+
 /* Hovered package */
 .gopkgview-hovered {
+    font-family: monospace;
+    font-size: 1rem;
     border-radius: 0.5rem;
     border: 1px solid rgb(238, 238, 238);
     background-color: rgb(255, 255, 255);
     float: right;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+
+/* Selection controls */
+.gopkgview-ctrl-top {
+    display: flex;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(238, 238, 238);
+    background-color: rgb(255, 255, 255);
+    padding: 0.25rem;
+    width: fit-content;
+}
+
+.gopkgview-btn-close {
+    color: rgb(255, 255, 255);
+    background-color: rgb(185 28 28);
+}
+
+.gopkgview-btn-close:hover {
+    background-color: rgb(153 27 27);
+}
+
+.gopkgview-btn-selectedonly-active {
+    color: rgb(255, 255, 255);
+    background-color: rgb(28, 41, 185);
+}
+
+.gopkgview-btn-selectedonly-active:hover {
+    background-color: rgb(24, 36, 158);
+}
+
+.gopkgview-ctrl-title {
+    font-family: monospace;
+    font-size: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(238, 238, 238);
+    background-color: rgb(255, 255, 255);
+    float: left;
     padding: 0.5rem;
     margin-top: 0.5rem;
 }

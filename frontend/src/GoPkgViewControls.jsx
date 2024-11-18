@@ -2,13 +2,13 @@ import { Panel } from "@xyflow/react";
 import "./controls.css";
 
 function ControlButton({ text, getter, onClick, description }) {
-  const activeClass = getter ? `gopkgview-mode-btn-active` : "";
+  const activeClass = getter ? `gopkgview-btn-active` : "";
 
   return (
     <div
       title={description}
       onClick={onClick}
-      className={`gopkgview-mode-btn ${activeClass}`}
+      className={`gopkgview-btn ${activeClass}`}
     >
       {text}
     </div>
@@ -24,7 +24,7 @@ function Selected({
 }) {
   if (!selectedNode) return null;
   return (
-    <div className="gopkgview-ctrl">
+    <>
       <div className="gopkgview-ctrl-top">
         <div
           onClick={() => {
@@ -32,24 +32,26 @@ function Selected({
             setHoveredNode(null);
             setSelectedNode(null);
           }}
-          className="gopkgview-ctrl-close"
+          className="gopkgview-btn gopkgview-btn-close"
         >
-          Close
+          ✕ Unselect
         </div>
-        <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
+        <div
+          onClick={() =>
+            setParams({
+              ...params,
+              onlySelectedEdges: !params.onlySelectedEdges,
+            })
+          }
+          className={`gopkgview-btn ${
+            params.onlySelectedEdges ? "gopkgview-btn-active" : ""
+          }`}
+        >
+          Show only direct edges
+        </div>
       </div>
-      <div
-        onClick={() =>
-          setParams({
-            ...params,
-            onlySelectedEdges: !params.onlySelectedEdges,
-          })
-        }
-        className="gopkgview-ctrl-only"
-      >
-        Only direct edges {params.onlySelectedEdges ? "ON" : "OFF"}
-      </div>
-    </div>
+      <span className="gopkgview-ctrl-title">{selectedNode.id}</span>
+    </>
   );
 }
 
