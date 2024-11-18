@@ -291,85 +291,47 @@ export default function App() {
     </div>
   );
 }
-
 function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
-  // Build a set of connected node IDs including the hovered node
-  const connectedNodeIds = new Set();
   const hoveredNodeId = hoveredNode?.id;
-
-  if (hoveredNodeId) {
-    connectedNodeIds.add(hoveredNodeId);
-
-    edges.forEach((edge) => {
-      if (edge.source === hoveredNodeId) {
-        connectedNodeIds.add(edge.target);
-      } else if (edge.target === hoveredNodeId) {
-        connectedNodeIds.add(edge.source);
-      }
-    });
+  
+  if (!hoveredNodeId) {
+    // Reset all styles when no node is hovered
+    setNodes(nodes => nodes.map(node => ({ ...node, style: { ...node.style, opacity: 1.0 } })));
+    setEdges(edges => edges.map(edge => ({
+      ...edge,
+      style: {},
+      markerEnd: { type: MarkerType.Arrow, width: 24, height: 24 }
+    })));
+    return;
   }
 
-  // Update node styles
-  setNodes((nds) =>
-    nds.map((node) => {
-      if (hoveredNodeId && !connectedNodeIds.has(node.id)) {
-        return {
-          ...node,
-          style: {
-            ...node.style,
-            opacity: 0.2,
-          },
-        };
-      } else {
-        return {
-          ...node,
-          style: {
-            ...node.style,
-            opacity: 1.0,
-          },
-        };
-      }
-    })
-  );
+  // Find nodes that are connected to the hovered node
+  const connectedNodes = new Set([
+    hoveredNodeId,
+    ...edges
+      .filter(edge => edge.source === hoveredNodeId || edge.target === hoveredNodeId)
+      .flatMap(edge => [edge.source, edge.target])
+  ]);
 
-  // Update edge styles
-  setEdges((eds) =>
-    eds.map((edge) => {
-      if (hoveredNodeId) {
-        if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
-          return {
-            ...edge,
-            style: { stroke: "red" }, // Highlight connected edges
-            markerEnd: {
-              type: MarkerType.Arrow,
-              color: "red",
-              width: 32,
-              height: 32,
-            },
-          };
-        } else {
-          return {
-            ...edge,
-            style: { opacity: 0.1 }, // Make edge pale
-            markerEnd: {
-              type: MarkerType.Arrow,
-              color: null,
-              width: 24,
-              height: 24,
-            },
-          };
-        }
-      } else {
-        return {
-          ...edge,
-          style: {}, // Reset to default style
-          markerEnd: {
-            type: MarkerType.Arrow,
-            width: 24,
-            height: 24,
-          },
-        };
+  // Update nodes
+  setNodes(nodes => nodes.map(node => ({
+    ...node,
+    style: {
+      ...node.style,
+      opacity: connectedNodes.has(node.id) ? 1.0 : 0.2
+    }
+  })));
+
+  // Update edges
+  setEdges(edges => edges.map(edge => {
+    const isConnected = edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+    return {
+      ...edge,
+      style: isConnected ? { stroke: "red" } : { opacity: 0.1 },
+      markerEnd: {
+        type: MarkerType.Arrow,
+        ...(isConnected ? { color: "red", width: 32, height: 32 } : { width: 24, height: 24 })
       }
-    })
-  );
+    };
+  }));
 }
