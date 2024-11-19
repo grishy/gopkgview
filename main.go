@@ -108,7 +108,9 @@ func main() {
 				return func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Access-Control-Allow-Origin", "*") // Disable CORS for simplicity of UI development
 					w.Header().Set("Content-Type", "application/json")
-					w.Write(data)
+					if _, err := w.Write(data); err != nil {
+						log.Printf("Failed to write JSON: %v", err)
+					}
 				}
 			}
 
