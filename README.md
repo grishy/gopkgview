@@ -64,8 +64,10 @@ gopkgview
 
 ## Alternatives
 
-- [go-callvis](https://github.com/ondrajz/go-callvis)
-- [godepgraph](https://github.com/kisielk/godepgraph)
+- [go-callvis](https://github.com/ondrajz/go-callvis) - Great tool for visualizing of call, but panic on Go >= 1.21
+- [godepgraph](https://github.com/kisielk/godepgraph) - Same idea, but output is static image
+- [depgraph](https://github.com/becheran/depgraph) - Inspire me to create this tool
+- [gomod](https://github.com/Helcaraxan/gomod)
 
 ## License
 
