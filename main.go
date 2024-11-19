@@ -68,11 +68,17 @@ func main() {
 				Usage:   "Maximum number of goroutines to use for parsing in parallel",
 				Value:   20,
 			},
+			&cli.BoolFlag{
+				Name:    "skip-browser",
+				EnvVars: []string{"GO_PKGVIEW_SKIP_BROWSER"},
+				Usage:   "Don't open browser on start",
+			},
 		},
 		Action: func(cCtx *cli.Context) error {
 			addr := cCtx.String("addr")
 			root := cCtx.String("root")
 			gomod := cCtx.String("gomod")
+			skipBrowser := cCtx.Bool("skip-browser")
 			maxGoroutines := cCtx.Uint("max-goroutines")
 
 			if gomod == "" {
@@ -127,8 +133,12 @@ func main() {
 			go func() {
 				log.Print("Starting server on ", listener.Addr())
 
-				if err := browser.OpenURL("http://" + listener.Addr().String()); err != nil {
-					log.Printf("Failed to open browser: %v", err)
+				if !skipBrowser {
+					webAddr := "http://" + listener.Addr().String()
+					log.Println("Opening browser on ", webAddr)
+					if err := browser.OpenURL(webAddr); err != nil {
+						log.Printf("Failed to open browser: %v", err)
+					}
 				}
 
 				if err := server.Serve(listener); err != http.ErrServerClosed {
