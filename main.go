@@ -11,14 +11,13 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/carlmjohnson/versioninfo"
 	"github.com/grishy/gopkgview/graph"
+	"github.com/pkg/browser"
 	"github.com/urfave/cli/v2"
 )
 
@@ -127,7 +126,8 @@ func main() {
 			server := &http.Server{Handler: mux}
 			go func() {
 				log.Print("Starting server on ", listener.Addr())
-				if err := openbrowser("http://" + listener.Addr().String()); err != nil {
+
+				if err := browser.OpenURL("http://" + listener.Addr().String()); err != nil {
 					log.Printf("Failed to open browser: %v", err)
 				}
 
@@ -146,20 +146,4 @@ func main() {
 		fmt.Println("Error:")
 		fmt.Printf(" > %+v\n", err)
 	}
-}
-
-// openbrowser took from github.com/becheran/depgraph as it is
-// Thanks to becheran
-func openbrowser(url string) (err error) {
-	switch runtime.GOOS {
-	case "linux":
-		err = exec.Command("xdg-open", url).Start()
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	case "darwin":
-		err = exec.Command("open", url).Start()
-	default:
-		err = fmt.Errorf("unsupported platform")
-	}
-	return
 }
