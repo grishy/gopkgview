@@ -284,6 +284,7 @@ async function onLayout({
   setNodes(layout.nodes);
   setEdges(layout.edges);
 
+  // TODO: Remove this hack
   // Fit the view after the layout is done
   setTimeout(() => {
     window.requestAnimationFrame(() => fitView());

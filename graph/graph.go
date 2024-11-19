@@ -166,6 +166,7 @@ func parseGoMod(root string) (*trie.PathTrie, error) {
 		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
 
+	// TODO: Here is an inaccuracy, because I need to handle also replace directive.
 	trieIndex := trie.New()
 	for _, require := range gomod.Require {
 		trieIndex.Put(require.Mod.Path)
