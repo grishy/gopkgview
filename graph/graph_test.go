@@ -26,7 +26,8 @@ func main() {}`,
 		}
 	}
 
-	g, err := graph.New(tmpDir, 4)
+	gomodPath := filepath.Join(tmpDir, "go.mod")
+	g, err := graph.New(gomodPath, tmpDir, 4)
 	if err != nil {
 		t.Fatalf("failed to create graph: %v", err)
 	}
@@ -95,7 +96,8 @@ func main() {}`,
 		}
 	}
 
-	g, err := graph.New(tmpDir, 4)
+	gomodPath := filepath.Join(tmpDir, "go.mod")
+	g, err := graph.New(gomodPath, tmpDir, 4)
 	if err != nil {
 		t.Fatalf("failed to create graph: %v", err)
 	}

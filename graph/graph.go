@@ -49,13 +49,13 @@ type Graph struct {
 
 // New creates a new graph of dependencies starting from the root directory.
 // maxGoroutines is the maximum number of goroutines to use for parsing in parallel.
-func New(root string, maxGoroutines uint) (*Graph, error) {
+func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	gomodIdx, err := parseGoMod(absRoot)
+	gomodIdx, err := parseGoMod(gomod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
@@ -155,20 +155,20 @@ func (g *Graph) addEdge(from, to string) {
 	})
 }
 
-func parseGoMod(root string) (*trie.PathTrie, error) {
-	modContent, err := os.ReadFile(filepath.Join(root, "go.mod"))
+func parseGoMod(gomod string) (*trie.PathTrie, error) {
+	modContent, err := os.ReadFile(gomod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read go.mod: %w", err)
 	}
 
-	gomod, err := modfile.Parse("go.mod", modContent, nil)
+	gomodContent, err := modfile.Parse("in", modContent, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
 
 	// TODO: Here is an inaccuracy, because I need to handle also replace directive.
 	trieIndex := trie.New()
-	for _, require := range gomod.Require {
+	for _, require := range gomodContent.Require {
 		trieIndex.Put(require.Mod.Path)
 	}
 

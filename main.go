@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -48,8 +49,13 @@ func main() {
 			&cli.StringFlag{
 				Name:        "root",
 				EnvVars:     []string{"GO_PKGVIEW_ROOT"},
-				Usage:       "From which directory find go.mod",
+				Usage:       "Path to start from",
 				DefaultText: "./",
+			},
+			&cli.StringFlag{
+				Name:    "gomod",
+				EnvVars: []string{"GO_PKGVIEW_GOMOD"},
+				Usage:   "Path to go.mod file to detect external dependencies",
 			},
 			&cli.StringFlag{
 				Name:        "addr",
@@ -67,10 +73,15 @@ func main() {
 		Action: func(cCtx *cli.Context) error {
 			addr := cCtx.String("addr")
 			root := cCtx.String("root")
+			gomod := cCtx.String("gomod")
 			maxGoroutines := cCtx.Uint("max-goroutines")
 
+			if gomod == "" {
+				gomod = filepath.Join(root, "go.mod")
+			}
+
 			log.Println("Creating graph...")
-			packageGraph, err := graph.New(root, maxGoroutines)
+			packageGraph, err := graph.New(gomod, root, maxGoroutines)
 			if err != nil {
 				return fmt.Errorf("failed to build graph: %w", err)
 			}
