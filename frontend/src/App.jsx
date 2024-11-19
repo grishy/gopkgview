@@ -46,6 +46,10 @@ const typeToColor = {
   err: "#ffefef",
 };
 
+const colorIn = "rgb(34 197 94)";
+const colorOut = "rgb(59 130 246)";
+const defaultMarker = { type: MarkerType.Arrow, width: 24, height: 24 };
+
 const getLayoutedElements = async (nodes, edges) => {
   // All fields will be passed to ELK and saved in the resulting node
   const elkGraph = {
@@ -165,7 +169,7 @@ function LayoutFlow() {
 
   // Effect to update styles based on hovered node
   useEffect(
-    () => onHoverChange(hoveredNode, edges, setNodes, setEdges),
+    () => onHoverChange(hoveredNode, selectedNode, edges, setNodes, setEdges),
     [hoveredNode]
   );
 
@@ -241,6 +245,14 @@ async function onLayout({
           (edge.target === node.id && edge.source === selectedId)
       );
     });
+
+    // selected = selected.map((n) => {
+    //   if (n.id === selectedId) {
+    //     return { ...n, style: { ...n.style, border: "2px solid red" } };
+    //   }
+
+    //   return n;
+    // });
   }
 
   const filteredNodes = selected.filter((n) => {
@@ -281,6 +293,10 @@ async function onLayout({
     }
   });
 
+  if (selectedNode) {
+    layout.edges = selectedEdges(selectedNode, layout.edges);
+  }
+
   setNodes(layout.nodes);
   setEdges(layout.edges);
 
@@ -291,8 +307,7 @@ async function onLayout({
   }, 20);
 }
 
-function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
-  const defaultMarker = { type: MarkerType.Arrow, width: 24, height: 24 };
+function onHoverChange(hoveredNode, selectedNode, edges, setNodes, setEdges) {
   const highlightedMarker = {
     ...defaultMarker,
     color: "red",
@@ -308,6 +323,7 @@ function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
         style: { ...node.style, opacity: 1.0 },
       }))
     );
+
     setEdges((edges) =>
       edges.map((edge) => ({
         ...edge,
@@ -315,6 +331,13 @@ function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
         markerEnd: defaultMarker,
       }))
     );
+
+    if (selectedNode) {
+      setEdges((edges) => {
+        return selectedEdges(selectedNode, edges);
+      });
+    }
+
     return;
   }
 
@@ -353,4 +376,32 @@ function onHoverChange(hoveredNode, edges, setNodes, setEdges) {
       };
     })
   );
+}
+
+function selectedEdges(selectedNode, eds) {
+  return eds.map((e) => {
+    if (e.target === selectedNode.id) {
+      return {
+        ...e,
+        style: { stroke: colorIn },
+        markerEnd: {
+          ...defaultMarker,
+          color: colorIn,
+        },
+      };
+    }
+
+    if (e.source === selectedNode.id) {
+      return {
+        ...e,
+        style: { stroke: colorOut },
+        markerEnd: {
+          ...defaultMarker,
+          color: colorOut,
+        },
+      };
+    }
+
+    return e;
+  });
 }
