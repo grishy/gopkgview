@@ -11,7 +11,7 @@
   <img src="https://goreportcard.com/badge/github.com/grishy/gopkgview" alt="Go Report Card">
   <img src="https://github.com/grishy/gopkgview/actions/workflows/release.yml/badge.svg" alt="Build Status">
 
-A Go package dependency visualization tool that helps you understand and analyze your Go project dependencies.
+**gopkgview** is an interactive tool designed to visualize and analyze Go project dependencies. It provides a rich, web-based interface for better understanding of how your project connects its components and external libraries.
 
 Example of visualization of [lazydocker](https://github.com/jesseduffield/lazydocker):
 
@@ -19,20 +19,23 @@ https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
 
 ## Features
 
-- Rich web visualization of Go dependencies
-- Allow to on/off dependencies per type
-- Select only subset of dependencies for visualization
+- Interactive web-based visualization of Go dependencies
+- Toggle dependencies by type
+- Focus on specific dependencies for analysis
 
 ## Installation - 3 options
 
-1. Install the latest version by running:
+### Install via `go install`
 
 ```bash
 go install github.com/grishy/gopkgview@latest
 ```
 
-2. Download the latest release from the [releases page](https://github.com/grishy/gopkgview/releases).
-3. Docker image
+### Download the Release
+
+From the latest release from the [Releases Page](https://github.com/grishy/gopkgview/releases).
+
+### Run with Docker
 
 ```bash
 docker run -p 8080:8080 -v $(pwd):/app ghcr.io/grishy/gopkgview:latest
@@ -43,11 +46,13 @@ docker run -p 8080:8080 -v $(pwd):/app ghcr.io/grishy/gopkgview:latest
 Navigate to your Go project directory and run:
 
 ```bash
-# In the root of your Go project
+cd my-go-project
 gopkgview
 ```
 
-### Flags
+This will start a web server with the dependency visualization available in your browser.
+
+### Available Flags
 
 ```plaintext
 --root value            From which directory find go.mod (default: ./) [$GO_PKGVIEW_ROOT]
