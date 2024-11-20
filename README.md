@@ -13,6 +13,8 @@
 
 **gopkgview** is an interactive tool designed to visualize and analyze Go project dependencies. It provides a rich, web-based interface for better understanding of how your project connects its components and external libraries.
 
+Implemented with [ELK's](https://github.com/kieler/elkjs) layout algorithms to arrange the graphs and [React Flow](https://reactflow.dev/) to make the visualization interactive and user-friendly.
+
 Example of visualization of [lazydocker](https://github.com/jesseduffield/lazydocker):
 
 https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
