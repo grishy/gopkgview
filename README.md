@@ -6,12 +6,10 @@
    <strong>Status: </strong>Maintained
 </p>
 
-<!-- TODO: Use correct URLs -->
 <p align="center">
-  <img src="https://img.shields.io/github/v/tag/grishy/go-avahi-cname" alt="GitHub tag (with filter)">
-  <img src="https://goreportcard.com/badge/github.com/grishy/go-avahi-cname" alt="Go Report Card">
-  <img src="https://github.com/grishy/go-avahi-cname/actions/workflows/release.yml/badge.svg" alt="Build Status">
-</p>
+  <img src="https://img.shields.io/github/v/tag/grishy/gopkgview" alt="GitHub tag">
+  <img src="https://goreportcard.com/badge/github.com/grishy/gopkgview" alt="Go Report Card">
+  <img src="https://github.com/grishy/gopkgview/actions/workflows/release.yml/badge.svg" alt="Build Status">
 
 A Go package dependency visualization tool that helps you understand and analyze your Go project dependencies.
 
@@ -25,8 +23,6 @@ https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
 - Allow to on/off dependencies per type
 - Select only subset of dependencies for visualization
 
-<!-- TODO: Add go releaser -->
-
 ## Installation - 3 options
 
 1. Install the latest version by running:
@@ -35,11 +31,11 @@ https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
 go install github.com/grishy/gopkgview@latest
 ```
 
-2. Download the latest release from the [releases page]()
+2. Download the latest release from the [releases page](https://github.com/grishy/gopkgview/releases).
 3. Docker image
 
 ```bash
-docker run -p 8080:8080 -v $(pwd):/app grishy/gopkgview
+docker run -p 8080:8080 -v $(pwd):/app ghcr.io/grishy/gopkgview:latest
 ```
 
 ## Usage
