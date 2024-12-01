@@ -15,6 +15,11 @@
 
 Implemented with [ELK's](https://github.com/kieler/elkjs) layout algorithms to arrange the graphs and [React Flow](https://reactflow.dev/) to make the visualization interactive and user-friendly.
 
+> go mod graph... doesn't show... a graph.  
+> gopkgview does.
+>
+> -- <cite><a href="https://newsletter.appliedgo.net/archive/dont-mess-with-that-property/">The Applied Go Weekly Newsletter</a></cite>
+
 Example of visualization of [lazydocker](https://github.com/jesseduffield/lazydocker):
 
 https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
