@@ -70,6 +70,16 @@ This will start a web server with the dependency visualization available in your
 --version, -v           print the version
 ```
 
+## Release
+
+Reminder for me, just create a tag and push it.
+
+```bash
+# Replace 1.0.1 with the new version in project
+git tag -a v1.0.1 -m "Release v1.0.1"
+git push origin tag v1.0.1
+```
+
 ## Alternatives
 
 - [go-callvis](https://github.com/ondrajz/go-callvis) - Great tool for visualizing of call, but panic on Go >= 1.21
