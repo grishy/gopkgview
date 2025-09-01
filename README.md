@@ -30,6 +30,10 @@ https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
 - Toggle dependencies by type
 - Focus on specific dependencies for analysis
 
+## Requirements
+
+- Go 1.25 or later
+
 ## Installation - 3 options
 
 ### Install via `go install`
