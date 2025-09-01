@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # STAGE 1: building the executable
-FROM docker.io/golang:1.24.0-alpine3.20 as builder
+FROM docker.io/golang:1.25.0-alpine3.22 as builder
 WORKDIR /build
 
 COPY go.mod go.sum ./
@@ -12,7 +12,7 @@ COPY . .
 RUN go build -ldflags="-w -s" -o /gopkgview
 
 # STAGE 2: build the container to run
-FROM docker.io/golang:1.24.0-alpine3.20
+FROM docker.io/golang:1.25.0-alpine3.22
 COPY --from=builder /gopkgview /gopkgview
 
 EXPOSE 8080
