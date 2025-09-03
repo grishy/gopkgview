@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"embed"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -129,7 +128,11 @@ func main() {
 				return fmt.Errorf("failed to listen: %w", err)
 			}
 
-			defer listener.Close()
+			defer func() {
+				if err := listener.Close(); err != nil {
+					log.Printf("Failed to close listener: %v", err)
+				}
+			}()
 
 			server := &http.Server{Handler: mux}
 			go func() {
