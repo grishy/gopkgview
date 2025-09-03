@@ -26,6 +26,8 @@ https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
 
 ## Features
 
+- Requires Go 1.25 or later
+
 - Interactive web-based visualization of Go dependencies
 - Toggle dependencies by type
 - Focus on specific dependencies for analysis
