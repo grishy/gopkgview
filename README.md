@@ -59,7 +59,7 @@ cd my-go-project
 gopkgview
 ```
 
-This will start a web server with the dependency visualization available in your browser.
+This will start a web server with the dependency visualization available in your browser. By default it opens your default browser; use `--skip-browser` if you prefer to launch it manually.
 
 ### Available Flags
 
@@ -68,6 +68,7 @@ This will start a web server with the dependency visualization available in your
 --gomod value           Path to go.mod [$GO_PKGVIEW_GOMOD]
 --addr value            Address to listen on (default: :0) [$GO_PKGVIEW_ADDR]
 --max-goroutines value  Maximum number of goroutines to use for parsing in parallel (default: 20) [$GO_PKGVIEW_MAX_GOROUTINES]
+--skip-browser          Don't open browser on start [$GO_PKGVIEW_SKIP_BROWSER]
 --help, -h              show help
 --version, -v           print the version
 ```
