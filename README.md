@@ -32,7 +32,7 @@
 
 Implemented with [ELK's](https://github.com/kieler/elkjs) layout algorithms to arrange the graphs and [React Flow](https://reactflow.dev/) to make the visualization interactive and user-friendly.
 
-> go mod graph... doesn't show... a graph.
+> go mod graph... doesn't show... a graph.  
 > gopkgview does.
 >
 > -- <cite><a href="https://newsletter.appliedgo.net/archive/dont-mess-with-that-property/">The Applied Go Weekly Newsletter</a></cite>
@@ -104,25 +104,22 @@ gopkgview --gomod ./path/to/go.mod
 
 ## Release Process
 
-Creating a new release (maintainer notes):
+Reminder for me, just create a tag and push it.
 
 ```bash
-# 1. Update version in relevant files
-# 2. Create and push a tag
+# Replace 1.0.1 with the new version in project
 git tag -a v1.0.1 -m "Release v1.0.1"
 git push origin tag v1.0.1
 ```
 
 ## Alternatives
 
-| Tool                                                | Description                      | Status                  |
-| --------------------------------------------------- | -------------------------------- | ----------------------- |
-| [go-callvis](https://github.com/ondrajz/go-callvis) | Visualizes call graphs           | ⚠️ Panics on Go >= 1.21 |
-| [godepgraph](https://github.com/kisielk/godepgraph) | Creates dependency graphs        | 📄 Static image output  |
-| [depgraph](https://github.com/becheran/depgraph)    | Rust-based dependency visualizer | ✅ Active               |
-| [gomod](https://github.com/Helcaraxan/gomod)        | Go module analysis tool          | ✅ Active               |
+- [go-callvis](https://github.com/ondrajz/go-callvis) - Great tool for visualizing of call, but panic on Go >= 1.21
+- [godepgraph](https://github.com/kisielk/godepgraph) - Same idea, but output is static image
+- [depgraph](https://github.com/becheran/depgraph) - Inspire me to create this tool
+- [gomod](https://github.com/Helcaraxan/gomod)
 
 ## License
 
-© 2024-2025 [Sergei G.](https://github.com/grishy)
+© 2025 [Sergei G.](https://github.com/grishy)
 This project is licensed under the [GPL-3.0 license](./LICENSE).
