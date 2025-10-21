@@ -9,33 +9,82 @@ permissions:
   contents: read
 
 jobs:
-  golangci:
+  linter:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version: "1.25.0"
-          cache: false
+          go-version: "1.25.3"
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+      - run: go mod download
+      - run: go mod verify
+
+      - uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.4.0
-  build_test:
+          version: v2.5.0
+
+  tests:
+    name: tests-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - macos-latest
+          - windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.3"
+
+      - run: go mod download
+      - run: go test -v ./...
+
+  build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
         with:
-          go-version: "1.25.0"
-          cache: false
+          fetch-depth: 0 # Required for goreleaser to get git history
 
-      - name: Verify dependencies
-        run: go mod verify
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.3"
 
-      - name: Build
-        run: go build -v ./...
+      - name: Set up QEMU for cross-compilation of Docker images
+        uses: docker/setup-qemu-action@v3
 
-      - name: Test
-        run: go test -v ./...
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - run: go mod download
+
+      - name: Run GoReleaser (snapshot build)
+        uses: goreleaser/goreleaser-action@v6
+        id: goreleaser
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --skip=publish --clean --snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          platforms: |
+            linux/arm64
+            linux/amd64
+          tags: test-build
+          build-args: |
+            VERSION=${{ fromJSON(steps.goreleaser.outputs.metadata).version }}
+            COMMIT=${{ fromJSON(steps.goreleaser.outputs.metadata).commit }}
+            COMMIT_DATE=${{ fromJSON(steps.goreleaser.outputs.metadata).date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

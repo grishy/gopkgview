@@ -1,37 +1,44 @@
+// Package graph provides functionality for building and analyzing Go dependency graphs.
 package graph
 
 import (
 	"fmt"
 	"go/build"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/grishy/gopkgview/trie"
 	"golang.org/x/mod/modfile"
+
+	"github.com/grishy/gopkgview/trie"
 )
 
+// PkgTypeEnum represents the type of a Go package (standard library, external, local, or error).
 type PkgTypeEnum string
 
+// Package type constants.
 const (
-	PkgTypeStdLib PkgTypeEnum = "std"
-	PkgTypeExtLib PkgTypeEnum = "ext"
-	PkgTypeLocal  PkgTypeEnum = "loc"
-	PkgTypeErr    PkgTypeEnum = "err"
+	PkgTypeStdLib PkgTypeEnum = "std" // Standard library package
+	PkgTypeExtLib PkgTypeEnum = "ext" // External package (from go.mod)
+	PkgTypeLocal  PkgTypeEnum = "loc" // Local project package
+	PkgTypeErr    PkgTypeEnum = "err" // Package with import errors
 )
 
+// Node represents a package node in the dependency graph.
 type Node struct {
 	ImportPath string
 	Name       string
 	PkgType    PkgTypeEnum
 }
 
+// Edge represents a dependency relationship between two packages.
 type Edge struct {
 	From string
 	To   string
 }
 
+// Graph represents a complete dependency graph for a Go project.
 type Graph struct {
 	buildCtx *build.Context
 	absRoot  string
@@ -83,10 +90,12 @@ func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
 	return graph, nil
 }
 
+// Nodes returns all nodes in the dependency graph.
 func (g *Graph) Nodes() []Node {
 	return g.nodes
 }
 
+// Edges returns all edges in the dependency graph.
 func (g *Graph) Edges() []Edge {
 	return g.edges
 }
@@ -109,7 +118,8 @@ func (g *Graph) recurseImport(path, srcDir string) {
 
 	pkg, err := g.buildCtx.Import(path, srcDir, 0)
 	if err != nil {
-		log.Printf("failed to import %s: %v", path, err)
+		//nolint:sloglint // simple CLI tool, global logger acceptable
+		slog.Warn("failed to import package", "path", path, "error", err)
 
 		g.addNode(path, "[err] "+path, PkgTypeErr)
 		return

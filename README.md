@@ -3,13 +3,30 @@
 <p align="center">
   <img src="./frontend/public/favicon.png" width="150">
    <br />
-   <strong>Status: </strong>Maintained
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/tag/grishy/gopkgview" alt="GitHub tag">
-  <img src="https://goreportcard.com/badge/github.com/grishy/gopkgview" alt="Go Report Card">
-  <img src="https://github.com/grishy/gopkgview/actions/workflows/release.yml/badge.svg" alt="Build Status">
+  <table align="center">
+    <tr>
+      <td><strong>Status</strong></td>
+      <td><b>Maintained</b></td>
+    </tr>
+    <tr>
+      <td><strong>Stable Version</strong></td>
+      <td><a href="https://github.com/grishy/gopkgview/tags"><img src="https://img.shields.io/github/v/tag/grishy/gopkgview" alt="GitHub tag"></a></td>
+    </tr>
+    <tr>
+      <td><strong>Go Report Card</strong></td>
+      <td><a href="https://goreportcard.com/report/github.com/grishy/gopkgview"><img src="https://goreportcard.com/badge/github.com/grishy/gopkgview" alt="Go Report Card"></a></td>
+    </tr>
+    <tr>
+      <td><strong>CI/CD</strong></td>
+      <td><a href="https://github.com/grishy/gopkgview/actions"><img src="https://github.com/grishy/gopkgview/actions/workflows/release.yml/badge.svg" alt="Build Status"></a></td>
+    </tr>
+  </table>
+</p>
+
+## Overview
 
 **gopkgview** is an interactive tool designed to visualize and analyze Go project dependencies. It provides a rich, web-based interface for better understanding of how your project connects its components and external libraries.
 
@@ -26,31 +43,31 @@ https://github.com/user-attachments/assets/d9715b85-9f77-4b2e-8ef4-1581071f1e66
 
 ## Features
 
-- Requires Go 1.25 or later
+- **Support latest Go version**
+- **Interactive web-based visualization** - Real-time exploration of dependencies
+- **Toggle dependencies by type** - Filter standard library, external, and local packages
+- **Focus on specific dependencies** - Drill down into particular packages for detailed analysis
+- **Multiple installation options** - `go install`, binary download, or Docker
 
-- Interactive web-based visualization of Go dependencies
-- Toggle dependencies by type
-- Focus on specific dependencies for analysis
+## Installation
 
-## Installation - 3 options
-
-### Install via `go install`
+### Option 1: Install via `go install`
 
 ```bash
 go install github.com/grishy/gopkgview@latest
 ```
 
-### Download the Release
+### Option 2: Download the Release
 
-From the latest release from the [Releases Page](https://github.com/grishy/gopkgview/releases).
+Download the latest binary from the [Releases Page](https://github.com/grishy/gopkgview/releases).
 
-### Run with Docker
+### Option 3: Run with Docker
 
 ```bash
 docker run -p 8080:8080 -v $(pwd):/app ghcr.io/grishy/gopkgview:latest
 ```
 
-## Usage
+## Quick Start
 
 Navigate to your Go project directory and run:
 
@@ -61,19 +78,31 @@ gopkgview
 
 This will start a web server with the dependency visualization available in your browser. By default it opens your default browser; use `--skip-browser` if you prefer to launch it manually.
 
+## Parameters
+
 ### Available Flags
 
-```plaintext
---root value            From which directory find go.mod (default: ./) [$GO_PKGVIEW_ROOT]
---gomod value           Path to go.mod [$GO_PKGVIEW_GOMOD]
---addr value            Address to listen on (default: :0) [$GO_PKGVIEW_ADDR]
---max-goroutines value  Maximum number of goroutines to use for parsing in parallel (default: 20) [$GO_PKGVIEW_MAX_GOROUTINES]
---skip-browser          Don't open browser on start [$GO_PKGVIEW_SKIP_BROWSER]
---help, -h              show help
---version, -v           print the version
+| Flag               | Description                                                                                                                               |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `--root`           | From which directory find go.mod <br> ‣ Default: `./` <br> ‣ Environment Variable: `GO_PKGVIEW_ROOT`                                      |
+| `--gomod`          | Path to go.mod <br> ‣ Default: Auto-detected <br> ‣ Environment Variable: `GO_PKGVIEW_GOMOD`                                              |
+| `--addr`           | Address to listen on <br> ‣ Default: `:0` (random port) <br> ‣ Environment Variable: `GO_PKGVIEW_ADDR`                                    |
+| `--max-goroutines` | Maximum number of goroutines to use for parsing in parallel <br> ‣ Default: `20` <br> ‣ Environment Variable: `GO_PKGVIEW_MAX_GOROUTINES` |
+| `--skip-browser`   | Don't open browser on start <br> ‣ Default: `false` <br> ‣ Environment Variable: `GO_PKGVIEW_SKIP_BROWSER`                                |
+| `--help`, `-h`     | Show help                                                                                                                                 |
+| `--version`, `-v`  | Print the version                                                                                                                         |
+
+### Example Usage
+
+```bash
+# Analyze a specific directory
+gopkgview --root ./path/to/project
+
+# Use a specific go.mod file
+gopkgview --gomod ./path/to/go.mod
 ```
 
-## Release
+## Release Process
 
 Reminder for me, just create a tag and push it.
 
@@ -92,5 +121,5 @@ git push origin tag v1.0.1
 
 ## License
 
-© 2024 [Sergei G.](https://github.com/grishy)  
-This project is [GPL-3.0 license](./LICENSE) licensed.
+© 2025 [Sergei G.](https://github.com/grishy)
+This project is licensed under the [GPL-3.0 license](./LICENSE).

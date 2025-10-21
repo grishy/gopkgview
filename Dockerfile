@@ -1,21 +1,43 @@
 # syntax=docker/dockerfile:1
 
-# STAGE 1: building the executable
-FROM docker.io/golang:1.25.0-alpine3.22 as builder
+#
+# Stage: build the executable
+#
+FROM --platform=$BUILDPLATFORM golang:1.25.3-alpine3.22 AS builder
 WORKDIR /build
 
-COPY go.mod go.sum ./
-RUN go mod download
+# Use mount cache for dependencies
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    go mod download -x
 
-ENV CGO_ENABLED=0
-COPY . .
-RUN go build -ldflags="-w -s" -o /gopkgview
+ARG TARGETARCH
+ARG TARGETOS
+ARG VERSION=dev
+ARG COMMIT=none
+ARG COMMIT_DATE=unknown
 
-# STAGE 2: build the container to run
-FROM docker.io/golang:1.25.0-alpine3.22
-COPY --from=builder /gopkgview /gopkgview
+# Build platform-specific
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=. \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build \
+    -trimpath \
+    -ldflags="-w -s \
+    -X main.version=${VERSION} \
+    -X main.commit=${COMMIT} \
+    -X main.date=${COMMIT_DATE}" \
+    -o /bin/gopkgview
+
+#
+# Stage: run the executable
+#
+FROM gcr.io/distroless/static-debian12
+COPY --from=builder /bin/gopkgview /gopkgview
 
 EXPOSE 8080
 
 ENTRYPOINT ["/gopkgview"]
-CMD [ "--root", "/app", "--addr", ":8080", "--skip-browser" ]
+CMD ["--root", "/app", "--addr", ":8080", "--skip-browser"]
