@@ -107,9 +107,9 @@ gopkgview --gomod ./path/to/go.mod
 Reminder for me, just create a tag and push it.
 
 ```bash
-# Replace 1.0.1 with the new version in project
-git tag -a v1.0.1 -m "Release v1.0.1"
-git push origin tag v1.0.1
+# Replace 1.2.0 with the new version in project
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push origin tag v1.2.0
 ```
 
 ## Alternatives
