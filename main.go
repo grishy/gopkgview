@@ -99,7 +99,7 @@ func runApp(ctx context.Context, cCtx *cli.Context) error {
 	log.Println("Graph created")
 
 	// Generate JSON blob for the UI
-	frontendData := map[string]interface{}{
+	frontendData := map[string]any{
 		"nodes": packageGraph.Nodes(),
 		"edges": packageGraph.Edges(),
 	}
