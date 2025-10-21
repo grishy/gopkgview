@@ -1,6 +1,6 @@
 module github.com/grishy/gopkgview
 
-go 1.25.0
+go 1.25.3
 
 require (
 	github.com/carlmjohnson/versioninfo v0.22.5
