@@ -42,25 +42,7 @@ jobs:
           go-version: "1.25.3"
 
       - run: go mod download
-      - run: go test -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./...
-
-      - name: Archive code coverage results
-        if: matrix.os == 'ubuntu-24.04'
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage
-          path: coverage.txt
-
-  code_coverage:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    needs: tests
-    permissions:
-      contents: read
-      actions: read
-      pull-requests: write # write permission needed to comment on PR
-    steps:
-      - uses: fgrosse/go-coverage-report@v1.2.0
+      - run: go test -v ./...
 
   build:
     runs-on: ubuntu-24.04
