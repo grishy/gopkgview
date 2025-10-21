@@ -21,7 +21,7 @@ func main() {}`,
 
 	for name, content := range files {
 		path := filepath.Join(tmpDir, name)
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // test file permissions
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}
@@ -43,6 +43,30 @@ func main() {}`,
 		}
 	}
 	t.Error("stdlib package 'fmt' not found or incorrectly typed")
+}
+
+func createTestFiles(t *testing.T, tmpDir string, files map[string]string) {
+	t.Helper()
+	for name, content := range files {
+		// Create internal directory if needed
+		fullpath := filepath.Join(tmpDir, name)
+		if err := os.MkdirAll(filepath.Dir(fullpath), 0o755); err != nil { //nolint:gosec // test directory permissions
+			t.Fatalf("failed to create internal directory: %v", err)
+		}
+
+		if err := os.WriteFile(fullpath, []byte(content), 0o644); err != nil { //nolint:gosec // test file permissions
+			t.Fatalf("failed to write %s: %v", name, err)
+		}
+	}
+}
+
+func findNodeByPath(nodes []graph.Node, path string) (graph.Node, bool) {
+	for _, node := range nodes {
+		if node.ImportPath == path {
+			return node, true
+		}
+	}
+	return graph.Node{}, false
 }
 
 func TestPackageTypes(t *testing.T) {
@@ -84,17 +108,7 @@ func main() {}`,
 		"internal/internal.go": `package internal`,
 	}
 
-	for name, content := range files {
-		// Create internal directory if needed
-		fullpath := filepath.Join(tmpDir, name)
-		if err := os.MkdirAll(filepath.Dir(fullpath), 0o755); err != nil {
-			t.Fatalf("failed to create internal directory: %v", err)
-		}
-
-		if err := os.WriteFile(fullpath, []byte(content), 0o644); err != nil {
-			t.Fatalf("failed to write %s: %v", name, err)
-		}
-	}
+	createTestFiles(t, tmpDir, files)
 
 	gomodPath := filepath.Join(tmpDir, "go.mod")
 	g, err := graph.New(gomodPath, tmpDir, 4)
@@ -115,24 +129,15 @@ func main() {}`,
 	nodes := g.Nodes()
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			var found bool
-			var got graph.PkgTypeEnum
-
-			for _, node := range nodes {
-				if node.ImportPath == tt.path {
-					found = true
-					got = node.PkgType
-					break
-				}
-			}
+			node, found := findNodeByPath(nodes, tt.path)
 
 			if !found && tt.want != graph.PkgTypeErr {
 				t.Errorf("package %s not found", tt.path)
 				return
 			}
 
-			if got != tt.want {
-				t.Errorf("got type %v, want %v", got, tt.want)
+			if node.PkgType != tt.want {
+				t.Errorf("got type %v, want %v", node.PkgType, tt.want)
 			}
 		})
 	}

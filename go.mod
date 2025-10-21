@@ -3,7 +3,6 @@ module github.com/grishy/gopkgview
 go 1.25.3
 
 require (
-	github.com/carlmjohnson/versioninfo v0.22.5
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/mod v0.27.0

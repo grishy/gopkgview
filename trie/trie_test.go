@@ -57,6 +57,21 @@ func TestPathTrie(t *testing.T) {
 	}
 }
 
+func runPrefixTest(t *testing.T, paths []string, prefixes map[string]bool) {
+	t.Helper()
+	tr := trie.New()
+	for _, p := range paths {
+		tr.Put(p)
+	}
+
+	for prefix, want := range prefixes {
+		if got := tr.HasPrefix(prefix); got != want {
+			t.Log("\n" + tr.String())
+			t.Errorf("PrefixCheck(%q) = %v, want %v", prefix, got, want)
+		}
+	}
+}
+
 func TestPathTriePrefixCheck(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -130,17 +145,7 @@ func TestPathTriePrefixCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr := trie.New()
-			for _, p := range tt.paths {
-				tr.Put(p)
-			}
-
-			for prefix, want := range tt.prefixes {
-				if got := tr.HasPrefix(prefix); got != want {
-					t.Log("\n" + tr.String())
-					t.Errorf("PrefixCheck(%q) = %v, want %v", prefix, got, want)
-				}
-			}
+			runPrefixTest(t, tt.paths, tt.prefixes)
 		})
 	}
 }

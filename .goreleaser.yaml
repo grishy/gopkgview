@@ -12,19 +12,14 @@ builds:
       - -trimpath
     ldflags:
       - -w -s
-    goos:
-      - linux
-      - freebsd
-      - darwin
-      - windows
-    goarch:
-      - "386"
-      - "amd64"
-      - "arm"
-      - "arm64"
-    goarm:
-      - "6"
-      - "7"
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.CommitDate}}
+    targets:
+      # First class ports: https://go.dev/wiki/PortingPolicy#first-class-ports
+      - go_118_first_class
+      - freebsd_arm64
+      - freebsd_amd64
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
@@ -41,12 +36,31 @@ release:
   target_commitish: "{{ .Commit }}"
   mode: replace
   header: |
-    ## ℹ️ For information on how to install and use please see `README.md`
+    ### [README.md](https://github.com/grishy/gopkgview#readme) - For information on how to install and use
   footer: |
-    Your PRs & issues are welcome! Thanks 😉
+    Your PRs and issues are welcome! Thanks 😉
   disable: false
   skip_upload: false
 
 changelog:
   # https://goreleaser.com/customization/changelog/
   sort: asc
+  filters:
+    exclude:
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "New Features"
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: "Bug fixes"
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: "Improvements"
+      regexp: "^.*chore[(\\w)]*:+.*$"
+      order: 2
+    - title: "Documentation"
+      regexp: "^.*docs[(\\w)]*:+.*$"
+      order: 3
+    - title: Others
+      order: 999
