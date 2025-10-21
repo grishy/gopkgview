@@ -4,7 +4,7 @@ package graph
 import (
 	"fmt"
 	"go/build"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -118,7 +118,8 @@ func (g *Graph) recurseImport(path, srcDir string) {
 
 	pkg, err := g.buildCtx.Import(path, srcDir, 0)
 	if err != nil {
-		log.Printf("failed to import %s: %v", path, err)
+		//nolint:sloglint // simple CLI tool, global logger acceptable
+		slog.Warn("failed to import package", "path", path, "error", err)
 
 		g.addNode(path, "[err] "+path, PkgTypeErr)
 		return
@@ -165,7 +166,7 @@ func (g *Graph) addEdge(from, to string) {
 }
 
 func parseGoMod(gomod string) (*trie.PathTrie, error) {
-	modContent, err := os.ReadFile(gomod) //nolint:gosec // gomod path is provided by user via CLI flags
+	modContent, err := os.ReadFile(gomod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read go.mod: %w", err)
 	}

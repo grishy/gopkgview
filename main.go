@@ -195,7 +195,6 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Println("Error:")
-		fmt.Printf(" > %+v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error: %+v\n", err)
 	}
 }

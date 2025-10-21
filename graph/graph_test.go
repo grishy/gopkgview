@@ -21,7 +21,7 @@ func main() {}`,
 
 	for name, content := range files {
 		path := filepath.Join(tmpDir, name)
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // test file permissions
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}
@@ -50,11 +50,11 @@ func createTestFiles(t *testing.T, tmpDir string, files map[string]string) {
 	for name, content := range files {
 		// Create internal directory if needed
 		fullpath := filepath.Join(tmpDir, name)
-		if err := os.MkdirAll(filepath.Dir(fullpath), 0o755); err != nil { //nolint:gosec // test directory permissions
+		if err := os.MkdirAll(filepath.Dir(fullpath), 0o755); err != nil {
 			t.Fatalf("failed to create internal directory: %v", err)
 		}
 
-		if err := os.WriteFile(fullpath, []byte(content), 0o644); err != nil { //nolint:gosec // test file permissions
+		if err := os.WriteFile(fullpath, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}
