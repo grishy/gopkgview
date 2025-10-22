@@ -6,24 +6,9 @@
 </p>
 
 <p align="center">
-  <table align="center">
-    <tr>
-      <td><strong>Status</strong></td>
-      <td><b>Maintained</b></td>
-    </tr>
-    <tr>
-      <td><strong>Stable Version</strong></td>
-      <td><a href="https://github.com/grishy/gopkgview/tags"><img src="https://img.shields.io/github/v/tag/grishy/gopkgview" alt="GitHub tag"></a></td>
-    </tr>
-    <tr>
-      <td><strong>Go Report Card</strong></td>
-      <td><a href="https://goreportcard.com/report/github.com/grishy/gopkgview"><img src="https://goreportcard.com/badge/github.com/grishy/gopkgview" alt="Go Report Card"></a></td>
-    </tr>
-    <tr>
-      <td><strong>CI/CD</strong></td>
-      <td><a href="https://github.com/grishy/gopkgview/actions"><img src="https://github.com/grishy/gopkgview/actions/workflows/release.yml/badge.svg" alt="Build Status"></a></td>
-    </tr>
-  </table>
+  <img src="https://img.shields.io/github/v/tag/grishy/gopkgview" alt="GitHub tag">
+  <img src="https://goreportcard.com/badge/github.com/grishy/gopkgview" alt="Go Report Card">
+  <img src="https://github.com/grishy/gopkgview/actions/workflows/release.yml/badge.svg" alt="Build Status">
 </p>
 
 ## Overview
