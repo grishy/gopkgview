@@ -1,5 +1,3 @@
-# gopkgview - Go dependency visualization
-
 <p align="center">
    <img src="./frontend/public/favicon.png" width="150">
    <br />
