@@ -69,6 +69,98 @@ func findNodeByPath(nodes []graph.Node, path string) (graph.Node, bool) {
 	return graph.Node{}, false
 }
 
+// TestMonorepoStructure tests that gopkgview correctly handles monorepo
+// structures where the root directory doesn't contain Go files directly,
+// but has multiple main packages in subdirectories (e.g., cmd/api, cmd/cli).
+func TestMonorepoStructure(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	files := map[string]string{
+		"go.mod": `module example.com/monorepo
+go 1.20`,
+
+		// cmd/api - first main package
+		"cmd/api/main.go": `package main
+
+import (
+	"fmt"
+	"example.com/monorepo/internal/shared"
+)
+
+func main() { fmt.Println(shared.Hello()) }`,
+
+		// cmd/cli - second main package
+		"cmd/cli/main.go": `package main
+
+import (
+	"fmt"
+	"example.com/monorepo/internal/shared"
+)
+
+func main() { fmt.Println(shared.Hello()) }`,
+
+		// Shared internal package
+		"internal/shared/shared.go": `package shared
+
+func Hello() string { return "hello" }`,
+	}
+
+	createTestFiles(t, tmpDir, files)
+
+	gomodPath := filepath.Join(tmpDir, "go.mod")
+	g, err := graph.New(gomodPath, tmpDir, 4)
+	if err != nil {
+		t.Fatalf("failed to create graph: %v", err)
+	}
+
+	nodes := g.Nodes()
+
+	// Verify we found all three local packages
+	expectedPackages := []string{
+		"example.com/monorepo/cmd/api",
+		"example.com/monorepo/cmd/cli",
+		"example.com/monorepo/internal/shared",
+	}
+
+	for _, pkg := range expectedPackages {
+		node, found := findNodeByPath(nodes, pkg)
+		if !found {
+			t.Errorf("expected package %s not found", pkg)
+			continue
+		}
+		if node.PkgType != graph.PkgTypeLocal {
+			t.Errorf("package %s: got type %v, want %v", pkg, node.PkgType, graph.PkgTypeLocal)
+		}
+	}
+
+	// Verify stdlib package fmt was found
+	fmtNode, found := findNodeByPath(nodes, "fmt")
+	if !found {
+		t.Error("stdlib package 'fmt' not found")
+	} else if fmtNode.PkgType != graph.PkgTypeStdLib {
+		t.Errorf("fmt: got type %v, want %v", fmtNode.PkgType, graph.PkgTypeStdLib)
+	}
+
+	// Verify edges exist from both main packages to shared
+	edges := g.Edges()
+	hasAPIToShared := false
+	hasCLIToShared := false
+	for _, edge := range edges {
+		if edge.From == "example.com/monorepo/cmd/api" && edge.To == "example.com/monorepo/internal/shared" {
+			hasAPIToShared = true
+		}
+		if edge.From == "example.com/monorepo/cmd/cli" && edge.To == "example.com/monorepo/internal/shared" {
+			hasCLIToShared = true
+		}
+	}
+	if !hasAPIToShared {
+		t.Error("missing edge from cmd/api to internal/shared")
+	}
+	if !hasCLIToShared {
+		t.Error("missing edge from cmd/cli to internal/shared")
+	}
+}
+
 func TestPackageTypes(t *testing.T) {
 	tmpDir := t.TempDir()
 

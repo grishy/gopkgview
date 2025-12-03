@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"golang.org/x/mod/modfile"
@@ -40,9 +41,10 @@ type Edge struct {
 
 // Graph represents a complete dependency graph for a Go project.
 type Graph struct {
-	buildCtx *build.Context
-	absRoot  string
-	gomodIdx *trie.PathTrie
+	buildCtx   *build.Context
+	absRoot    string
+	modulePath string // Module path from go.mod
+	gomodIdx   *trie.PathTrie
 
 	parseMx    sync.Mutex
 	parseWg    sync.WaitGroup
@@ -62,15 +64,16 @@ func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	gomodIdx, err := parseGoMod(gomod)
+	modulePath, gomodIdx, err := parseGoMod(gomod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
 
 	graph := &Graph{
-		buildCtx: &build.Default,
-		absRoot:  absRoot,
-		gomodIdx: gomodIdx,
+		buildCtx:   &build.Default,
+		absRoot:    absRoot,
+		modulePath: modulePath,
+		gomodIdx:   gomodIdx,
 
 		parseMx:    sync.Mutex{},
 		parseWg:    sync.WaitGroup{},
@@ -83,11 +86,77 @@ func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
 
 	graph.buildCtx.Dir = absRoot
 
-	graph.parseWg.Add(1)
-	go graph.recurseImport(".", absRoot)
+	// Discover all directories containing Go files to support monorepos
+	// where the root directory may not contain Go files directly
+	entryDirs, err := findGoPackageDirs(absRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover Go packages: %w", err)
+	}
+
+	if len(entryDirs) == 0 {
+		return nil, fmt.Errorf("no Go packages found in %s", absRoot)
+	}
+
+	// Start recursive import from each discovered package directory
+	for _, dir := range entryDirs {
+		graph.parseWg.Add(1)
+		go graph.recurseImport(".", dir)
+	}
 	graph.parseWg.Wait()
 
 	return graph, nil
+}
+
+// findGoPackageDirs walks the directory tree and returns all directories
+// that contain Go source files (excluding test files).
+func findGoPackageDirs(root string) ([]string, error) {
+	var dirs []string
+
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			//nolint:nilerr // Intentionally skip inaccessible directories and continue walking
+			return nil
+		}
+
+		if !d.IsDir() {
+			return nil
+		}
+
+		name := d.Name()
+		// Skip hidden directories, vendor, and testdata
+		if strings.HasPrefix(name, ".") || name == "vendor" || name == "testdata" {
+			return filepath.SkipDir
+		}
+
+		// Check if directory contains Go source files
+		if hasGoFiles(path) {
+			dirs = append(dirs, path)
+		}
+
+		return nil
+	})
+
+	return dirs, err
+}
+
+// hasGoFiles checks if a directory contains any non-test Go source files.
+func hasGoFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Nodes returns all nodes in the dependency graph.
@@ -107,39 +176,60 @@ func (g *Graph) recurseImport(path, srcDir string) {
 	g.parseSem <- struct{}{}
 	defer func() { <-g.parseSem }()
 
-	// Avoid parsing the same package multiple times
-	g.parseMx.Lock()
-	if _, ok := g.parseCache[path]; ok {
-		g.parseMx.Unlock()
-		return
-	}
-	g.parseCache[path] = struct{}{}
-	g.parseMx.Unlock()
-
 	pkg, err := g.buildCtx.Import(path, srcDir, 0)
 	if err != nil {
 		//nolint:sloglint // simple CLI tool, global logger acceptable
 		slog.Warn("failed to import package", "path", path, "error", err)
 
-		g.addNode(path, "[err] "+path, PkgTypeErr)
+		// Use compound key for error cache to handle "." from different directories
+		errKey := path + "@" + srcDir
+		g.parseMx.Lock()
+		if _, ok := g.parseCache[errKey]; ok {
+			g.parseMx.Unlock()
+			return
+		}
+		g.parseCache[errKey] = struct{}{}
+		g.addNodeLocked(path, "[err] "+path, PkgTypeErr)
+		g.parseMx.Unlock()
 		return
 	}
+
+	// Compute the proper import path for packages imported as "."
+	// by using the module path and relative directory from root
+	importPath := pkg.ImportPath
+	if importPath == "." {
+		relPath, relErr := filepath.Rel(g.absRoot, pkg.Dir)
+		if relErr == nil && relPath != "." {
+			importPath = g.modulePath + "/" + filepath.ToSlash(relPath)
+		} else {
+			importPath = g.modulePath
+		}
+	}
+
+	// Use resolved importPath for cache key
+	g.parseMx.Lock()
+	if _, ok := g.parseCache[importPath]; ok {
+		g.parseMx.Unlock()
+		return
+	}
+	g.parseCache[importPath] = struct{}{}
+	g.parseMx.Unlock()
 
 	pkgType := PkgTypeLocal
 	if pkg.Goroot {
 		pkgType = PkgTypeStdLib
-	} else if g.gomodIdx.HasPrefix(pkg.ImportPath) {
+	} else if g.gomodIdx.HasPrefix(importPath) {
 		pkgType = PkgTypeExtLib
 	}
 
-	g.addNode(pkg.ImportPath, pkg.Name, pkgType)
+	g.addNode(importPath, pkg.Name, pkgType)
 	for _, imp := range pkg.Imports {
 		// We don't want to recurse into std lib or external packages
 		if pkgType != PkgTypeLocal {
 			continue
 		}
 
-		g.addEdge(pkg.ImportPath, imp)
+		g.addEdge(importPath, imp)
 
 		g.parseWg.Add(1)
 		go g.recurseImport(imp, pkg.Dir)
@@ -156,6 +246,15 @@ func (g *Graph) addNode(path, name string, pkgType PkgTypeEnum) {
 	})
 }
 
+// addNodeLocked adds a node without acquiring the mutex (caller must hold the lock).
+func (g *Graph) addNodeLocked(path, name string, pkgType PkgTypeEnum) {
+	g.nodes = append(g.nodes, Node{
+		ImportPath: path,
+		Name:       name,
+		PkgType:    pkgType,
+	})
+}
+
 func (g *Graph) addEdge(from, to string) {
 	g.parseMx.Lock()
 	defer g.parseMx.Unlock()
@@ -165,16 +264,18 @@ func (g *Graph) addEdge(from, to string) {
 	})
 }
 
-func parseGoMod(gomod string) (*trie.PathTrie, error) {
+func parseGoMod(gomod string) (string, *trie.PathTrie, error) {
 	modContent, err := os.ReadFile(gomod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read go.mod: %w", err)
+		return "", nil, fmt.Errorf("failed to read go.mod: %w", err)
 	}
 
 	gomodContent, err := modfile.Parse("in", modContent, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse go.mod: %w", err)
+		return "", nil, fmt.Errorf("failed to parse go.mod: %w", err)
 	}
+
+	modulePath := gomodContent.Module.Mod.Path
 
 	// TODO: Here is an inaccuracy, because I need to handle also replace directive.
 	trieIndex := trie.New()
@@ -182,5 +283,5 @@ func parseGoMod(gomod string) (*trie.PathTrie, error) {
 		trieIndex.Put(require.Mod.Path)
 	}
 
-	return trieIndex, nil
+	return modulePath, trieIndex, nil
 }
