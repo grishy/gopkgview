@@ -39,8 +39,40 @@ func buildVersion() string {
 	return fmt.Sprintf("v%s (commit: %s, built: %s)", version, commit, date)
 }
 
-func createJSONHandler(data []byte) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+func createJSONHandler(defaultDir string, maxGoroutines uint) http.HandlerFunc {
+
+	absDefault, err := filepath.Abs(defaultDir)
+	if err != nil {
+		log.Printf("could not get absolute path for: %s", defaultDir)
+	}
+
+	return func(w http.ResponseWriter, req *http.Request) {
+
+		log.Printf("request: %s", req.RequestURI)
+
+		var data []byte
+
+		if req.URL.Query().Has("file") {
+
+			absPath, err := filepath.Abs(req.URL.Query().Get("file"))
+			if err != nil {
+				log.Printf("failed to get absolute path: %v", err)
+				return
+			}
+
+			data, err = createJsonData(absPath, maxGoroutines)
+			if err != nil {
+				log.Printf("Failed to create JSON data: %v", err)
+			}
+
+		} else {
+
+			data, err = createJsonData(absDefault, maxGoroutines)
+			if err != nil {
+				log.Printf("could not create JSON data for: %s", defaultDir)
+			}
+		}
+
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Disable CORS for simplicity of UI development
 		w.Header().Set("Content-Type", "application/json")
 		if _, writeErr := w.Write(data); writeErr != nil {
@@ -48,68 +80,44 @@ func createJSONHandler(data []byte) http.HandlerFunc {
 		}
 	}
 }
+func setupHTTPServer(root string, maxGoroutines uint) (*http.ServeMux, error) {
 
-func setupHTTPServer(dataJSON []byte) (*http.ServeMux, error) {
 	fsys, err := fs.Sub(frontend, "frontend/dist")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get frontend subdirectory: %w", err)
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/data", createJSONHandler(dataJSON))
+	mux.Handle("/data", createJSONHandler(root, maxGoroutines))
 	mux.Handle("/", http.FileServer(http.FS(fsys)))
 
 	return mux, nil
 }
 
-func startServerAsync(server *http.Server, listener net.Listener, skipBrowser bool) {
-	go func() {
-		log.Print("Starting server on ", listener.Addr())
+func startServer(server *http.Server, listener net.Listener, skipBrowser bool) {
 
-		if !skipBrowser {
-			webAddr := "http://" + listener.Addr().String()
-			log.Println("Opening browser on ", webAddr)
-			if browserErr := browser.OpenURL(webAddr); browserErr != nil {
-				log.Printf("Failed to open browser: %v", browserErr)
-			}
-		}
+	log.Print("Starting server on ", listener.Addr())
 
-		if serveErr := server.Serve(listener); serveErr != http.ErrServerClosed {
-			log.Fatalf("Serve(): %v", serveErr)
+	if !skipBrowser {
+		webAddr := "http://" + listener.Addr().String()
+		log.Println("Opening browser on ", webAddr)
+		if browserErr := browser.OpenURL(webAddr); browserErr != nil {
+			log.Printf("Failed to open browser: %v", browserErr)
 		}
-	}()
+	}
+
+	if serveErr := server.Serve(listener); serveErr != http.ErrServerClosed {
+		log.Fatalf("Serve(): %v", serveErr)
+	}
 }
 
 func runApp(ctx context.Context, cCtx *cli.Context) error {
 	addr := cCtx.String("addr")
-	root := cCtx.String("root")
-	gomod := cCtx.String("gomod")
 	skipBrowser := cCtx.Bool("skip-browser")
+	root := cCtx.String("root")
 	maxGoroutines := cCtx.Uint("max-goroutines")
 
-	if gomod == "" {
-		gomod = filepath.Join(root, "go.mod")
-	}
-
-	log.Println("Creating graph...")
-	packageGraph, err := graph.New(gomod, root, maxGoroutines)
-	if err != nil {
-		return fmt.Errorf("failed to build graph: %w", err)
-	}
-	log.Println("Graph created")
-
-	// Generate JSON blob for the UI
-	frontendData := map[string]any{
-		"nodes": packageGraph.Nodes(),
-		"edges": packageGraph.Edges(),
-	}
-
-	dataJSON, err := json.Marshal(frontendData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal to JSON: %w", err)
-	}
-
-	mux, err := setupHTTPServer(dataJSON)
+	mux, err := setupHTTPServer(root, maxGoroutines)
 	if err != nil {
 		return err
 	}
@@ -132,11 +140,36 @@ func runApp(ctx context.Context, cCtx *cli.Context) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	startServerAsync(server, listener, skipBrowser)
+	go startServer(server, listener, skipBrowser)
 
 	<-ctx.Done()
 	log.Print("Shutting down...")
 	return server.Shutdown(ctx)
+}
+
+func createJsonData(absPath string, maxGoroutines uint) ([]byte, error) {
+
+	var dataJSON []byte
+
+	log.Println("Creating graph...")
+	packageGraph, err := graph.New(absPath, maxGoroutines)
+	if err != nil {
+		return dataJSON, fmt.Errorf("failed to build graph: %w", err)
+	}
+	log.Println("Graph created")
+
+	// Generate JSON blob for the UI
+	frontendData := map[string]any{
+		"nodes": packageGraph.Nodes(),
+		"edges": packageGraph.Edges(),
+	}
+
+	dataJSON, err = json.Marshal(frontendData)
+	if err != nil {
+		return dataJSON, fmt.Errorf("failed to marshal to JSON: %w", err)
+	}
+
+	return dataJSON, nil
 }
 
 func main() {
