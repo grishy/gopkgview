@@ -126,9 +126,11 @@ function LayoutFlow() {
       markerEnd: { type: MarkerType.Arrow, width: 24, height: 24 },
     });
 
+    
     const fetchData = async () => {
       try {
-        const { nodes, edges } = await fetch("/data").then((res) => res.json());
+        var urlToGetJSON = "/data"+window.location.search // add query string to end - can be ""
+        const { nodes, edges } = await fetch(urlToGetJSON).then((res) => res.json());
         const initialNodes = nodes.map(createNode);
         const initialEdges = edges.map(createEdge);
 

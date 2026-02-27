@@ -4,6 +4,7 @@ package graph
 import (
 	"fmt"
 	"go/build"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -56,10 +57,23 @@ type Graph struct {
 
 // New creates a new graph of dependencies starting from the root directory.
 // maxGoroutines is the maximum number of goroutines to use for parsing in parallel.
-func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
-	absRoot, err := filepath.Abs(root)
+//
+// `absPath` may be a file or a directory
+func New(absPath string, maxGoroutines uint) (*Graph, error) {
+
+	fileInfo, err := os.Stat(absPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		return nil, err
+	}
+
+	absDir := absPath
+	if !fileInfo.IsDir() {
+		absDir = filepath.Dir(absPath)
+	}
+
+	gomod, err := locateGomod(absDir)
+	if err != nil {
+		return nil, err
 	}
 
 	gomodIdx, err := parseGoMod(gomod)
@@ -69,7 +83,7 @@ func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
 
 	graph := &Graph{
 		buildCtx: &build.Default,
-		absRoot:  absRoot,
+		absRoot:  absDir,
 		gomodIdx: gomodIdx,
 
 		parseMx:    sync.Mutex{},
@@ -81,13 +95,41 @@ func New(gomod, root string, maxGoroutines uint) (*Graph, error) {
 		edges: []Edge{},
 	}
 
-	graph.buildCtx.Dir = absRoot
+	graph.buildCtx.Dir = absDir
 
 	graph.parseWg.Add(1)
-	go graph.recurseImport(".", absRoot)
+	go graph.recurseImport(".", absDir)
 	graph.parseWg.Wait()
 
 	return graph, nil
+}
+func locateGomod(absDir string) (string, error) {
+
+	dir := absDir
+
+	for {
+
+		gomod := filepath.Join(dir, "go.mod")
+		if fileExists(gomod) {
+			log.Println("found: ", gomod)
+			return gomod, nil
+		}
+
+		// search until root-dir reached
+		dir = filepath.Dir(dir)
+		if dir == "" {
+			return "", fmt.Errorf("go.mod not found in '%s' nor any parent-directory", absDir)
+		}
+	}
+}
+
+func fileExists(path string) bool {
+
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+
+	return true
 }
 
 // Nodes returns all nodes in the dependency graph.
