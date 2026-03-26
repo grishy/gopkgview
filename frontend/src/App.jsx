@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useState,
   useEffect,
+  useMemo,
 } from "react";
 import {
   ReactFlow,
@@ -88,12 +89,18 @@ function LayoutFlow() {
     displayExt: false,
     displayErr: true,
     onlySelectedEdges: false,
+    hiddenPackages: [],
   });
 
   const [selectedNode, setSelectedNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
 
   const { fitView } = useReactFlow();
+
+  const allPackages = useMemo(
+    () => initialNodes.map((node) => node.id).sort((a, b) => a.localeCompare(b)),
+    [initialNodes]
+  );
 
   // Initial data download
   useEffect(() => {
@@ -183,8 +190,19 @@ function LayoutFlow() {
       onEdgesChange={onEdgesChange}
       onNodeClick={(event, node) => {
         setSelectedNode(node);
-      }}
-      onNodeMouseEnter={(event, node) => {
+      }}      onNodeContextMenu={(event, node) => {
+        event.preventDefault();
+        setSelectedNode(node);
+        setParams((prev) => {
+          const hiddenSet = new Set(prev.hiddenPackages);
+          if (hiddenSet.has(node.id)) {
+            hiddenSet.delete(node.id);
+          } else {
+            hiddenSet.add(node.id);
+          }
+          return { ...prev, hiddenPackages: [...hiddenSet] };
+        });
+      }}      onNodeMouseEnter={(event, node) => {
         setHoveredNode(node);
       }}
       onNodeMouseLeave={() => {
@@ -204,6 +222,7 @@ function LayoutFlow() {
         setSelectedNode={setSelectedNode}
         params={params}
         selectedNode={selectedNode}
+        allPackages={allPackages}
       />
       <Background variant="dots" gap={12} size={1} />
     </ReactFlow>
@@ -255,7 +274,10 @@ async function onLayout({
     // });
   }
 
+  const hiddenSet = new Set(params.hiddenPackages);
+
   const filteredNodes = selected.filter((n) => {
+    if (hiddenSet.has(n.id)) return false;
     if (selectedNode && n.id === selectedNode.id) return true;
     if (n.pkgType === "loc") return true;
     if (n.pkgType === "std") return params.displayStd;

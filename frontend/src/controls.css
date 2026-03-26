@@ -95,3 +95,47 @@
     padding: 0.5rem;
     margin-top: 0.5rem;
 }
+
+.gopkgview-hide-panel {
+    margin-top: 0.75rem;
+    border: 1px solid rgb(238, 238, 238);
+    border-radius: 0.5rem;
+    background: white;
+    padding: 0.5rem;
+    max-height: 240px;
+    overflow: hidden;
+    width: 280px;
+}
+
+.gopkgview-hide-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.gopkgview-hide-filter {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgb(225, 225, 225);
+    border-radius: 0.25rem;
+}
+
+.gopkgview-hide-list {
+    max-height: 160px;
+    overflow: auto;
+}
+
+.gopkgview-hide-item {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0.2rem 0;
+    font-size: 0.8rem;
+}
+
+.gopkgview-hide-empty {
+    font-size: 0.8rem;
+    color: gray;
+}
